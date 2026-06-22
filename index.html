@@ -47,8 +47,8 @@
   <p class="sub">いくつか選ぶだけ。実績データから、合う先生を理由つきでご提案します。</p>
   <div id="greet" style="display:none;background:#eaf3ff;color:var(--blue);border-radius:12px;padding:10px 12px;font-size:13px;font-weight:700;margin-bottom:6px"></div>
 
-  <!-- STEP link 連携（未連携のときだけ表示・任意） -->
-  <div class="step" data-step="link">
+  <!-- STEP link 連携（最初に表示。連携 or「あとで」で先へ） -->
+  <div class="step on" data-step="link">
     <div class="q">Teachのアカウントと連携しますか？ <span class="pill">任意</span></div>
     <div class="more">連携すると、お子さんの学年やお悩みを引き継いで、より的確にご提案できます。未連携でもこのまま探せます。</div>
     <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="ご登録のメールアドレス"
@@ -64,7 +64,7 @@
   </div>
 
   <!-- STEP1 学年 -->
-  <div class="step on" data-step="1">
+  <div class="step" data-step="1">
     <div class="q">学年は？</div>
     <div class="opts" id="grade"></div>
     <div class="nav"><button class="btn primary" disabled onclick="go(2)">次へ</button></div>
