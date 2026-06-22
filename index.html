@@ -44,6 +44,16 @@
   <p class="sub">いくつか選ぶだけ。実績データから、合う先生を理由つきでご提案します。</p>
   <div id="greet" style="display:none;background:#eaf3ff;color:var(--blue);border-radius:12px;padding:10px 12px;font-size:13px;font-weight:700;margin-bottom:6px"></div>
 
+  <!-- STEP link 連携（未連携のときだけ表示・任意） -->
+  <div class="step" data-step="link">
+    <div class="q">Teachのアカウントと連携しますか？ <span class="pill">任意</span></div>
+    <div class="more">連携すると、お子さんの学年やお悩みを引き継いで、より的確にご提案できます。未連携でもこのまま探せます。</div>
+    <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="ご登録のメールアドレス"
+           style="width:100%;padding:12px;border:1.5px solid var(--line);border-radius:12px;font-size:15px;margin:4px 0">
+    <div id="linkmsg" class="more" style="color:#c0392b"></div>
+    <div class="nav"><button class="btn ghost" onclick="skipLink()">あとで</button><button class="btn primary" onclick="doLink()">連携する</button></div>
+  </div>
+
   <!-- STEP0 お子さん選択（保護者に複数生徒がいる場合のみ） -->
   <div class="step" data-step="0">
     <div class="q">どのお子さんの先生をさがしますか？</div>
@@ -91,7 +101,7 @@
 
 <script>
 // ====== 設定 ======
-var LIFF_ID  = "PUT-YOUR-LIFF-ID";                               // LINE Developers で発行
+var LIFF_ID  = "2006856244-1wujiAnb";                            // LINE Developers で発行
 var GAS_URL  = "https://script.google.com/macros/s/AKfycbwS99qo00x09W2xhp89-I5K7CYn4Csez7cvN79JTGog7snGsPW5Zk9WM4rTmA68fGpS/exec";   // GASウェブアプリURL
 
 // 選択肢（表示ラベル l ／ 照合用の値 v ＝タグ辞書の科目名）
@@ -123,14 +133,31 @@ var pendingStruggle = "";
 
 // 保護者→子ども特定。複数いれば選ばせ、1人なら学年・お悩みを先回り
 async function initPersonalize(){
-  if (!userId || userId.indexOf("web-")===0) return;
+  if (!userId || userId.indexOf("web-")===0) return;   // LINE外は匿名フロー
   try {
     var r = await fetch(GAS_URL+"?action=whoami&uid="+encodeURIComponent(userId)).then(function(x){return x.json();});
-    if (!r.linked || !r.children || !r.children.length) return;
-    sel.parentId = r.parentId;
-    if (r.children.length === 1){ applyChild(r.children[0]); }
-    else { renderChildren(r.children); go(0); }
+    if (r.linked){ sel.parentId = r.parentId; handleLinked(r.children); }
+    else { go("link"); }                               // 未連携→メール連携を促す（任意）
   } catch(e){}
+}
+function handleLinked(children){
+  if (!children || !children.length){ go(1); return; }
+  if (children.length === 1){ applyChild(children[0]); go(1); }
+  else { renderChildren(children); go(0); }
+}
+function skipLink(){ go(1); }
+function doLink(){
+  var email=(document.getElementById("email").value||"").trim();
+  var msg=document.getElementById("linkmsg"); msg.textContent="";
+  if(!email){ msg.textContent="メールアドレスを入力してください"; return; }
+  fetch(GAS_URL+"?action=link&uid="+encodeURIComponent(userId)+"&email="+encodeURIComponent(email))
+    .then(function(x){return x.json();})
+    .then(function(r){
+      if(r.linked){ sel.parentId=r.parentId; handleLinked(r.children); }
+      else if(r.notFound){ msg.textContent="そのメールでは見つかりませんでした。ご登録のメールをご確認ください。"; }
+      else { msg.textContent="連携に失敗しました。「あとで」で進めても大丈夫です。"; }
+    })
+    .catch(function(){ msg.textContent="通信エラーが発生しました。「あとで」で進めても大丈夫です。"; });
 }
 function renderChildren(children){
   var box=document.getElementById("children"); box.innerHTML="";
