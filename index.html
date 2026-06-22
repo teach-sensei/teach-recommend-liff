@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>先生をさがす | Teach</title>
+<!-- LIFF SDK -->
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  :root{ --blue:#2b8aef; --ink:#243b53; --soft:#f3f6fb; --line:#e3e9f2; }
+  *{box-sizing:border-box} body{margin:0;font-family:-apple-system,"Hiragino Kaku Gothic ProN",sans-serif;color:var(--ink);background:#fff}
+  .wrap{max-width:560px;margin:0 auto;padding:16px}
+  h1{font-size:18px;margin:8px 0 4px} .sub{color:#6b7c93;font-size:13px;margin:0 0 16px}
+  .step{display:none} .step.on{display:block}
+  .q{font-weight:700;margin:18px 0 8px;font-size:15px} .hint{color:#90a0b5;font-size:12px;font-weight:400}
+  .pill{display:inline-block;background:#eaf3ff;color:var(--blue);font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;vertical-align:middle}
+  .more{color:#6b7c93;font-size:12.5px;margin:-2px 0 10px;line-height:1.5}
+  .opts{display:flex;flex-wrap:wrap;gap:8px}
+  .opt{border:1.5px solid var(--line);border-radius:999px;padding:9px 14px;font-size:14px;background:#fff;cursor:pointer;user-select:none}
+  .opt.sel{border-color:var(--blue);background:#eaf3ff;color:var(--blue);font-weight:700}
+  .nav{display:flex;gap:10px;margin-top:22px}
+  .btn{flex:1;border:0;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer}
+  .btn.primary{background:var(--blue);color:#fff} .btn.ghost{background:var(--soft);color:var(--ink)}
+  .btn:disabled{opacity:.45}
+  /* results */
+  .card{border:1px solid var(--line);border-radius:16px;padding:14px;margin:12px 0;box-shadow:0 2px 10px rgba(40,80,140,.05)}
+  .card .top{display:flex;justify-content:space-between;align-items:center}
+  .name{font-weight:800;font-size:16px} .univ{color:#7b8aa0;font-size:12px}
+  .badges{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+  .badge{background:#fff4e5;color:#c77700;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700}
+  .badge.live{background:#e7f7ec;color:#1f9d55}
+  .reasons{margin:8px 0;padding-left:18px} .reasons li{font-size:13px;margin:3px 0}
+  .subnote{font-size:12px;color:#9aa7b8;margin:4px 0 8px}
+  .ctas{display:flex;gap:8px;margin-top:8px}
+  .cta{flex:1;text-align:center;text-decoration:none;border-radius:10px;padding:11px;font-size:14px;font-weight:700}
+  .cta.book{background:var(--blue);color:#fff} .cta.page{background:var(--soft);color:var(--ink)}
+  .copy{width:100%;margin-top:8px;border:1px dashed var(--line);background:#fff;color:#6b7c93;border-radius:10px;padding:9px;font-size:12.5px;cursor:pointer}
+  .loading{text-align:center;color:#7b8aa0;padding:30px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>お子さんに合う先生をさがす</h1>
+  <p class="sub">いくつか選ぶだけ。実績データから、合う先生を理由つきでご提案します。</p>
+  <div id="greet" style="display:none;background:#eaf3ff;color:var(--blue);border-radius:12px;padding:10px 12px;font-size:13px;font-weight:700;margin-bottom:6px"></div>
+
+  <!-- STEP0 お子さん選択（保護者に複数生徒がいる場合のみ） -->
+  <div class="step" data-step="0">
+    <div class="q">どのお子さんの先生をさがしますか？</div>
+    <div class="opts" id="children"></div>
+  </div>
+
+  <!-- STEP1 学年 -->
+  <div class="step on" data-step="1">
+    <div class="q">学年は？</div>
+    <div class="opts" id="grade"></div>
+    <div class="nav"><button class="btn primary" disabled onclick="go(2)">次へ</button></div>
+  </div>
+
+  <!-- STEP2 科目 -->
+  <div class="step" data-step="2">
+    <div class="q">どの科目をみてほしい？</div>
+    <div class="opts" id="subject"></div>
+    <div class="nav"><button class="btn ghost" onclick="go(1)">戻る</button><button class="btn primary" disabled onclick="go(3)">次へ</button></div>
+  </div>
+
+  <!-- STEP3 悩み（大分類→具体） -->
+  <div class="step" data-step="3">
+    <div class="q">いちばんの悩みは？ <span class="pill">任意</span></div>
+    <div class="more">スキップOK。でも選ぶほど“あなたにぴったり”の先生に近づきます。</div>
+    <div class="opts" id="struggle"></div>
+    <div class="nav"><button class="btn ghost" onclick="go(2)">戻る</button><button class="btn primary" onclick="go(4)">次へ</button></div>
+  </div>
+
+  <!-- STEP4 希望（任意） -->
+  <div class="step" data-step="4">
+    <div class="q">先生に求めるもの <span class="pill">任意</span></div>
+    <div class="more">ここも未入力でOK。答えるほどマッチの精度が上がります。</div>
+    <div class="opts" id="pers"></div>
+    <div class="q">指導スタイル <span class="pill">任意</span></div>
+    <div class="opts" id="style"></div>
+    <div class="nav"><button class="btn ghost" onclick="go(3)">戻る</button><button class="btn primary" onclick="submit()">この内容でさがす</button></div>
+  </div>
+
+  <!-- 結果 -->
+  <div class="step" data-step="5">
+    <div id="results"></div>
+    <div class="nav"><button class="btn ghost" onclick="restart()">条件を変えてさがす</button></div>
+  </div>
+</div>
+
+<script>
+// ====== 設定 ======
+var LIFF_ID  = "PUT-YOUR-LIFF-ID";                               // LINE Developers で発行
+var GAS_URL  = "https://script.google.com/macros/s/AKfycbwS99qo00x09W2xhp89-I5K7CYn4Csez7cvN79JTGog7snGsPW5Zk9WM4rTmA68fGpS/exec";   // GASウェブアプリURL
+
+// 選択肢（表示ラベル l ／ 照合用の値 v ＝タグ辞書の科目名）
+var GRADES = [{l:"小学生",v:"小学"},{l:"中学生",v:"中学"},{l:"高校生",v:"高校"}];
+var SUBJECTS = {
+  "小学":[{l:"算数",v:"算数(小)"},{l:"中学受験算数",v:"算数(中受)"},{l:"国語",v:"国語(小)"},{l:"理科",v:"理科(小)"},{l:"社会",v:"社会(小)"},{l:"英語",v:"英語(小)"}],
+  "中学":[{l:"数学",v:"数学(中)"},{l:"英語",v:"英語(中)"},{l:"国語",v:"国語(中)"},{l:"理科",v:"理科(中)"},{l:"社会",v:"社会(中)"}],
+  "高校":[{l:"数学ⅠA",v:"数学ⅠA"},{l:"数学ⅡB",v:"数学ⅡB"},{l:"数学Ⅲ",v:"数学Ⅲ"},{l:"英語",v:"英語(高)"},{l:"現代文",v:"現代文(高)"},{l:"古文",v:"古文(高)"},{l:"物理",v:"物理"},{l:"化学",v:"化学"},{l:"生物",v:"生物"},{l:"世界史",v:"世界史(高)"},{l:"日本史",v:"日本史(高)"}]
+};
+var STRUGGLES = {
+  "受験・試験":["受験対策","テスト対策","過去問演習","推薦対策","英検対策"],
+  "つまずき・理解":["授業についていけない","苦手意識","内容が難しい","勉強法がわからない","成績の伸び"],
+  "やる気・習慣":["モチベが低い","集中力がない","勉強嫌い","学習計画","予習・復習"],
+  "進め方":["宿題","暗記法","ノートの取り方","参考書・問題集"]
+};
+var PERS = ["優しい","面倒見がいい","穏やか","親しみやすい","明るい","厳格","落ち着いている"];
+var STYLES = ["生徒に合わせる","やる気を出させる","楽しく教える","得意を伸ばす","苦手を克服"];
+
+var sel = {grade:"",subject:"",struggles:[],pers:[],styles:[],parentId:"",studentId:""};
+var userId = "";
+var pendingStruggle = "";
+
+// LIFF初期化（LINE外でも動くようフォールバック）→ 本人特定して先回り
+(async function(){
+  try { await liff.init({liffId: LIFF_ID}); if (liff.isLoggedIn()){ var p = await liff.getProfile(); userId = p.userId; } }
+  catch(e){ userId = "web-" + Math.random().toString(36).slice(2,8); }
+  initPersonalize();
+})();
+
+// 保護者→子ども特定。複数いれば選ばせ、1人なら学年・お悩みを先回り
+async function initPersonalize(){
+  if (!userId || userId.indexOf("web-")===0) return;
+  try {
+    var r = await fetch(GAS_URL+"?action=whoami&uid="+encodeURIComponent(userId)).then(function(x){return x.json();});
+    if (!r.linked || !r.children || !r.children.length) return;
+    sel.parentId = r.parentId;
+    if (r.children.length === 1){ applyChild(r.children[0]); }
+    else { renderChildren(r.children); go(0); }
+  } catch(e){}
+}
+function renderChildren(children){
+  var box=document.getElementById("children"); box.innerHTML="";
+  children.forEach(function(ch){
+    var d=document.createElement("div"); d.className="opt";
+    d.textContent = (ch.name||"お子さん") + (ch.grade?"（"+ch.grade+"）":"");
+    d.onclick=function(){ applyChild(ch); go(1); };
+    box.appendChild(d);
+  });
+}
+function applyChild(ch){
+  sel.studentId = ch.studentId;
+  var g=document.getElementById("greet");
+  g.style.display="block";
+  g.textContent = (ch.name||"お子さん") + (ch.grade?"（"+ch.grade+"）":"") + "の先生をさがします";
+  if (ch.gradeBand){ sel.grade=ch.gradeBand; selectChip("grade",ch.gradeBand); renderSubjects(); var nb=document.querySelector('[data-step="1"] .primary'); if(nb) nb.disabled=false; }
+  if (ch.struggle){ pendingStruggle=ch.struggle; preselectStruggle(); }
+}
+function selectChip(elId,val){ var box=document.getElementById(elId); if(!box) return; [].forEach.call(box.children,function(c){ if((c.dataset&&c.dataset.val||c.textContent)===val) c.classList.add("sel"); }); }
+function preselectStruggle(){
+  var box=document.getElementById("struggle"); if(!box||!pendingStruggle) return;
+  [].forEach.call(box.children,function(c){ if(c.className==="opt" && c.textContent && (pendingStruggle.indexOf(c.textContent)>=0 || c.textContent.indexOf(pendingStruggle)>=0)) c.classList.add("sel"); });
+  sel.struggles=selectedIn("struggle");
+}
+
+// チップ生成
+function chips(elId, items, multi, onpick){
+  var box = document.getElementById(elId); box.innerHTML="";
+  items.forEach(function(it){
+    var label = (typeof it==="string") ? it : it.l;
+    var val   = (typeof it==="string") ? it : it.v;
+    var d=document.createElement("div"); d.className="opt"; d.textContent=label; d.dataset.val=val;
+    d.onclick=function(){
+      if(multi){ d.classList.toggle("sel"); }
+      else { [].forEach.call(box.children,function(c){c.classList.remove("sel");}); d.classList.add("sel"); }
+      onpick(val,d);
+    };
+    box.appendChild(d);
+  });
+}
+function selectedIn(elId){ return [].filter.call(document.getElementById(elId).children,function(c){return c.classList.contains("sel");}).map(function(c){return c.dataset.val||c.textContent;}); }
+
+// 初期描画
+chips("grade",GRADES,false,function(v){ sel.grade=v; document.querySelector('[data-step="1"] .primary').disabled=false; renderSubjects(); });
+chips("pers",PERS,true,function(){ sel.pers=selectedIn("pers"); });
+chips("style",STYLES,true,function(){ sel.styles=selectedIn("style"); });
+function renderSubjects(){ chips("subject",SUBJECTS[sel.grade]||[],false,function(v){ sel.subject=v; document.querySelector('[data-step="2"] .primary').disabled=false; }); }
+// 悩みは大分類見出し付き
+(function renderStruggles(){
+  var box=document.getElementById("struggle"); box.innerHTML="";
+  Object.keys(STRUGGLES).forEach(function(cat){
+    var h=document.createElement("div"); h.style.cssText="width:100%;font-size:12px;color:#90a0b5;margin:8px 0 2px"; h.textContent=cat; box.appendChild(h);
+    STRUGGLES[cat].forEach(function(v){
+      var d=document.createElement("div"); d.className="opt"; d.textContent=v;
+      d.onclick=function(){ d.classList.toggle("sel"); sel.struggles=selectedIn("struggle"); };
+      box.appendChild(d);
+    });
+  });
+})();
+
+function go(n){ [].forEach.call(document.querySelectorAll(".step"),function(s){s.classList.remove("on");}); document.querySelector('[data-step="'+n+'"]').classList.add("on"); window.scrollTo(0,0); }
+function restart(){ go(1); }
+
+function submit(){
+  go(5);
+  document.getElementById("results").innerHTML='<div class="loading">合う先生をさがしています…</div>';
+  var q = "?action=match&uid="+encodeURIComponent(userId)+
+          "&parentId="+encodeURIComponent(sel.parentId)+
+          "&studentId="+encodeURIComponent(sel.studentId)+
+          "&grade="+encodeURIComponent(sel.grade)+
+          "&subject="+encodeURIComponent(sel.subject)+
+          "&struggles="+encodeURIComponent(sel.struggles.join(","))+
+          "&personalities="+encodeURIComponent(sel.pers.join(","))+
+          "&styles="+encodeURIComponent(sel.styles.join(","));
+  fetch(GAS_URL+q).then(function(r){return r.json();}).then(render).catch(function(){
+    document.getElementById("results").innerHTML='<div class="loading">うまく取得できませんでした。条件を変えてお試しください。</div>';
+  });
+}
+
+function render(data){
+  var res=data.results||[];
+  if(!res.length){ document.getElementById("results").innerHTML='<div class="loading">条件に合う先生が見つかりませんでした。悩みや希望を減らしてみてください。</div>'; return; }
+  var html="";
+  res.forEach(function(t){
+    var badges=(t.badges||[]).map(function(b){ var live=/受付中/.test(b)?" live":""; return '<span class="badge'+live+'">'+b+'</span>'; }).join("");
+    var reasons=(t.reasons||[]).map(function(r){return "<li>"+r+"</li>";}).join("");
+    var page = t.pageUrl ? '<a class="cta page" href="'+t.pageUrl+'" target="_blank" rel="noopener">先生を見る</a>' : '';
+    var bookLabel = t.bookLabel || (t.isRequest ? '日時をリクエスト' : 'この先生で予約する');
+    html+= '<div class="card">'
+        +    '<div class="top"><div><span class="name">'+t.nickname+'</span> <span class="univ">'+t.univ+'</span></div></div>'
+        +    (t.note?'<div class="subnote">'+t.note+'</div>':'')
+        +    '<div class="badges">'+badges+'</div>'
+        +    '<ul class="reasons">'+reasons+'</ul>'
+        +    '<div class="ctas"><a class="cta book" href="'+t.bookUrl+'" target="_blank" rel="noopener">'+bookLabel+'</a>'+page+'</div>'
+        +    '<button class="copy" data-msg="'+encodeURIComponent(t.copyText||'')+'" onclick="copyMsg(this)">予約前に質問する文をコピー</button>'
+        +  '</div>';
+  });
+  document.getElementById("results").innerHTML=html;
+}
+
+function copyMsg(btn){
+  var msg = decodeURIComponent(btn.getAttribute("data-msg")||"");
+  function done(){ var o=btn.textContent; btn.textContent="コピーしました（アプリの質問欄に貼れます）"; setTimeout(function(){btn.textContent=o;},1800); }
+  if (navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(msg).then(done, done); }
+  else { var ta=document.createElement("textarea"); ta.value=msg; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");}catch(e){} ta.remove(); done(); }
+}
+</script>
+</body>
+</html>
