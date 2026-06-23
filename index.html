@@ -278,7 +278,7 @@ function render(data){
         +      '<button class="copy" data-msg="'+encodeURIComponent(msg)+'" onclick="copyMsg(this)">この文をコピー</button></div>'
         +  '</div>';
   });
-  html += '<div class="qbox" style="text-align:center;margin-top:14px">'
+  html += '<div class="qbox" id="askbox" style="text-align:center;margin-top:14px">'
        +    '<div class="qlabel">先生選びで迷ったら</div>'
        +    '<button class="copy" onclick="askHelp(this)">わからないことがあれば聞いてください</button>'
        +  '</div>';
@@ -288,14 +288,25 @@ function escapeHtml(s){ return String(s).replace(/[&<>"]/g,function(c){return {"
 function track(ev,tid){ try{ fetch(GAS_URL+"?action=track&e="+encodeURIComponent(ev)+"&p="+encodeURIComponent(sel.parentId)+"&st="+encodeURIComponent(sel.studentId)+"&s="+encodeURIComponent(SID)+"&t="+encodeURIComponent(tid||""),{mode:"no-cors",keepalive:true}); }catch(e){} }
 
 // 「わからないことがあれば聞いてください」：クリックを記録（未クリック層への後追いLINE配信の母集団判定に使う）
+// 押したら必ず「受け付けました」を画面に出す（無反応で不安にさせない）
 function askHelp(btn){
   track("ask_help","");
-  if (window.liff && liff.isInClient && liff.isInClient()){
-    try { liff.sendMessages([{type:"text", text:"先生選びで相談したいことがあります🙇"}]).then(function(){ liff.closeWindow(); }); return; }
-    catch(e){}
+  var inClient = !!(window.liff && liff.isInClient && liff.isInClient());
+  if (inClient){
+    try { liff.sendMessages([{type:"text", text:"先生選びで相談したいことがあります🙇"}]); } catch(e){}
   }
-  btn.textContent = "メッセージでお気軽にどうぞ";
-  btn.disabled = true;
+  var box = document.getElementById("askbox");
+  if (box){
+    box.innerHTML =
+        '<div class="qlabel">受け付けました</div>'
+      + '<div class="qtext">ご相談ありがとうございます。'
+      + (inClient ? 'このLINEのトークで、担当から順番にお返事します。' : 'LINEのトークから、担当が順番にお返事します。')
+      + '少しだけお待ちくださいね。</div>'
+      + (inClient ? '<button class="copy" onclick="try{liff.closeWindow()}catch(e){}">トークに戻る</button>' : '');
+  } else if (btn){
+    btn.textContent = "受け付けました。トークでお返事します";
+    btn.disabled = true;
+  }
 }
 
 function copyMsg(btn){
