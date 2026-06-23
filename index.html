@@ -53,7 +53,7 @@
   <!-- STEP link 連携（未連携のときだけ表示） -->
   <div class="step" data-step="link">
     <div class="q">Teachのアカウントと連携しますか？ <span class="pill">任意</span></div>
-    <div class="more">連携すると、お子さんの学年やお悩みを引き継いで、より的確にご提案できます。未連携でもこのまま探せます。</div>
+    <div class="more">連携すると、お子さんの学年やお悩みを引き継いで、より的確にご提案できます。さらに、授業の翌朝には学習レポートもお届けします📨 未連携でもこのまま探せます。</div>
     <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="ご登録のメールアドレス"
            style="width:100%;padding:12px;border:1.5px solid var(--line);border-radius:12px;font-size:15px;margin:4px 0">
     <div id="linkmsg" class="more" style="color:#c0392b"></div>
@@ -149,7 +149,10 @@ async function initPersonalize(){
   } catch(e){ go("link"); }
 }
 var myChildren = [];                                   // 連携で取得したお子さん一覧（選び直し用に保持）
+var childRouted = false;                                // 初回ルーティング済みフラグ（連打や遅延応答での二重表示を防ぐ）
 function handleLinked(children){
+  if (childRouted) return;                              // 既に振り分け済みなら無視（連打対策）
+  childRouted = true;
   myChildren = children || [];
   if (!myChildren.length){ go(1); return; }
   if (myChildren.length === 1){ applyChild(myChildren[0]); go(1); }
@@ -160,18 +163,25 @@ function reselectChild(){
   if (myChildren.length > 1){ renderChildren(myChildren); go(0); }
 }
 function skipLink(){ go(1); }
+var linking = false;                                   // 連携リクエスト実行中フラグ（連打防止）
 function doLink(){
+  if (linking) return;                                 // 処理中の追加タップは無視
   var email=(document.getElementById("email").value||"").trim();
   var msg=document.getElementById("linkmsg"); msg.textContent="";
   if(!email){ msg.textContent="メールアドレスを入力してください"; return; }
+  linking = true;
+  var btn=document.querySelector('[data-step="link"] .primary');
+  var orig = btn ? btn.textContent : "";
+  if(btn){ btn.disabled=true; btn.textContent="確認中…"; }
+  function reset(){ linking=false; if(btn){ btn.disabled=false; btn.textContent=orig; } }
   fetch(GAS_URL+"?action=link&uid="+encodeURIComponent(userId)+"&email="+encodeURIComponent(email)+"&nm="+encodeURIComponent(userName||"")+"&pic="+encodeURIComponent(userPicture||""))
     .then(function(x){return x.json();})
     .then(function(r){
-      if(r.linked){ sel.parentId=r.parentId; handleLinked(r.children); }
-      else if(r.notFound){ msg.textContent="そのメールでは見つかりませんでした。ご登録のメールをご確認ください。"; }
-      else { msg.textContent="連携に失敗しました。「あとで」で進めても大丈夫です。"; }
+      if(r.linked){ sel.parentId=r.parentId; handleLinked(r.children); }   // 画面が進むのでボタンは戻さない
+      else if(r.notFound){ msg.textContent="そのメールでは見つかりませんでした。ご登録のメールをご確認ください。"; reset(); }
+      else { msg.textContent="連携に失敗しました。「あとで」で進めても大丈夫です。"; reset(); }
     })
-    .catch(function(){ msg.textContent="通信エラーが発生しました。「あとで」で進めても大丈夫です。"; });
+    .catch(function(){ msg.textContent="通信エラーが発生しました。「あとで」で進めても大丈夫です。"; reset(); });
 }
 function renderChildren(children){
   var box=document.getElementById("children"); box.innerHTML="";
