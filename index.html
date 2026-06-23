@@ -47,8 +47,11 @@
   <p class="sub">いくつか選ぶだけ。実績データから、合う先生を理由つきでご提案します。</p>
   <div id="greet" style="display:none;background:#eaf3ff;color:var(--blue);border-radius:12px;padding:10px 12px;font-size:13px;font-weight:700;margin-bottom:6px"></div>
 
-  <!-- STEP link 連携（最初に表示。連携 or「あとで」で先へ） -->
-  <div class="step on" data-step="link">
+  <!-- STEP loading 初期判定（連携済みかどうか確認してから画面を出す） -->
+  <div class="step on" data-step="loading"><div class="loading">確認中…</div></div>
+
+  <!-- STEP link 連携（未連携のときだけ表示） -->
+  <div class="step" data-step="link">
     <div class="q">Teachのアカウントと連携しますか？ <span class="pill">任意</span></div>
     <div class="more">連携すると、お子さんの学年やお悩みを引き継いで、より的確にご提案できます。未連携でもこのまま探せます。</div>
     <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="ご登録のメールアドレス"
@@ -136,17 +139,23 @@ var pendingStruggle = "";
 
 // 保護者→子ども特定。複数いれば選ばせ、1人なら学年・お悩みを先回り
 async function initPersonalize(){
-  if (!userId || userId.indexOf("web-")===0) return;   // LINE外は匿名フロー
+  if (!userId || userId.indexOf("web-")===0){ go("link"); return; }   // 未ログイン/LINE外→連携を促す
   try {
     var r = await fetch(GAS_URL+"?action=whoami&uid="+encodeURIComponent(userId)).then(function(x){return x.json();});
-    if (r.linked){ sel.parentId = r.parentId; handleLinked(r.children); }
-    else { go("link"); }                               // 未連携→メール連携を促す（任意）
-  } catch(e){}
+    if (r.linked){ sel.parentId = r.parentId; handleLinked(r.children); }  // 連携済み→認証は出さず先へ
+    else { go("link"); }                               // 未連携のときだけ連携画面
+  } catch(e){ go("link"); }
 }
+var myChildren = [];                                   // 連携で取得したお子さん一覧（選び直し用に保持）
 function handleLinked(children){
-  if (!children || !children.length){ go(1); return; }
-  if (children.length === 1){ applyChild(children[0]); go(1); }
-  else { renderChildren(children); go(0); }
+  myChildren = children || [];
+  if (!myChildren.length){ go(1); return; }
+  if (myChildren.length === 1){ applyChild(myChildren[0]); go(1); }
+  else { renderChildren(myChildren); go(0); }
+}
+// 後から「お子さんを選び直す」
+function reselectChild(){
+  if (myChildren.length > 1){ renderChildren(myChildren); go(0); }
 }
 function skipLink(){ go(1); }
 function doLink(){
@@ -175,7 +184,10 @@ function applyChild(ch){
   sel.studentId = ch.studentId;
   var g=document.getElementById("greet");
   g.style.display="block";
-  g.textContent = (ch.name||"お子さん") + (ch.grade?"（"+ch.grade+"）":"") + "の先生をさがします";
+  var label = (ch.name||"お子さん") + (ch.grade?"（"+ch.grade+"）":"") + "の先生をさがします";
+  g.innerHTML = label + (myChildren.length>1
+    ? ' <a href="#" onclick="reselectChild();return false;" style="color:var(--blue);font-weight:700;font-size:12px;margin-left:6px">お子さんを選び直す</a>'
+    : '');
   if (ch.gradeBand){ sel.grade=ch.gradeBand; selectChip("grade",ch.gradeBand); renderSubjects(); var nb=document.querySelector('[data-step="1"] .primary'); if(nb) nb.disabled=false; }
   if (ch.struggle){ pendingStruggle=ch.struggle; preselectStruggle(); }
 }
@@ -249,7 +261,8 @@ function render(data){
   res.forEach(function(t){
     var badges=(t.badges||[]).map(function(b){ var live=/受付中|空き|最短/.test(b)?" live":""; return '<span class="badge'+live+'">'+b+'</span>'; }).join("");
     var reasons=(t.reasons||[]).map(function(r){return "<li>"+r+"</li>";}).join("");
-    var page = t.pageDest ? '<a class="cta page" href="'+t.pageDest+'" target="_blank" rel="noopener" onclick="track(\'teacher_page\','+t.teacherId+')">先生を見る</a>' : '';
+    var searchDest = t.searchDest || "https://t-ch.co.jp/teachers/";
+    var searchLabel = t.searchLabel || ('先生一覧で「'+t.nickname+'」を探す');
     var bookLabel = t.bookLabel || (t.isRequest ? '日時をリクエスト' : 'この先生で予約する');
     var msg = t.copyText || "";
     html+= '<div class="card">'
@@ -257,16 +270,33 @@ function render(data){
         +    (t.note?'<div class="subnote">'+t.note+'</div>':'')
         +    '<div class="badges">'+badges+'</div>'
         +    '<ul class="reasons">'+reasons+'</ul>'
-        +    '<div class="ctas"><a class="cta book" href="'+t.bookDest+'" target="_blank" rel="noopener" onclick="track(\''+(t.bookEv||'book')+'\','+t.teacherId+')">'+bookLabel+'</a>'+page+'</div>'
-        +    '<div class="qbox"><div class="qlabel">予約前に質問するときの文（下の文をコピーして質問欄に貼れます）</div>'
+        +    '<div class="ctas"><a class="cta book" href="'+searchDest+'" target="_blank" rel="noopener" onclick="track(\'teacher_search\','+t.teacherId+')">'+searchLabel+'</a></div>'
+        +    '<div class="subnote">一覧ページで先生名を検索すると、プロフィールや空き枠を見られます。</div>'
+        +    '<div class="ctas"><a class="cta page" href="'+t.bookDest+'" target="_blank" rel="noopener" onclick="track(\''+(t.bookEv||'book')+'\','+t.teacherId+')">'+bookLabel+'</a></div>'
+        +    '<div class="qbox"><div class="qlabel">先生に送るときの文（下の文をコピーして使えます）</div>'
         +      '<div class="qtext">'+escapeHtml(msg)+'</div>'
         +      '<button class="copy" data-msg="'+encodeURIComponent(msg)+'" onclick="copyMsg(this)">この文をコピー</button></div>'
         +  '</div>';
   });
+  html += '<div class="qbox" style="text-align:center;margin-top:14px">'
+       +    '<div class="qlabel">先生選びで迷ったら</div>'
+       +    '<button class="copy" onclick="askHelp(this)">わからないことがあれば聞いてください</button>'
+       +  '</div>';
   document.getElementById("results").innerHTML=html;
 }
 function escapeHtml(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];}); }
-function track(ev,tid){ try{ fetch(GAS_URL+"?action=track&e="+encodeURIComponent(ev)+"&p="+encodeURIComponent(sel.parentId)+"&st="+encodeURIComponent(sel.studentId)+"&s="+encodeURIComponent(SID)+"&t="+encodeURIComponent(tid),{mode:"no-cors",keepalive:true}); }catch(e){} }
+function track(ev,tid){ try{ fetch(GAS_URL+"?action=track&e="+encodeURIComponent(ev)+"&p="+encodeURIComponent(sel.parentId)+"&st="+encodeURIComponent(sel.studentId)+"&s="+encodeURIComponent(SID)+"&t="+encodeURIComponent(tid||""),{mode:"no-cors",keepalive:true}); }catch(e){} }
+
+// 「わからないことがあれば聞いてください」：クリックを記録（未クリック層への後追いLINE配信の母集団判定に使う）
+function askHelp(btn){
+  track("ask_help","");
+  if (window.liff && liff.isInClient && liff.isInClient()){
+    try { liff.sendMessages([{type:"text", text:"先生選びで相談したいことがあります🙇"}]).then(function(){ liff.closeWindow(); }); return; }
+    catch(e){}
+  }
+  btn.textContent = "メッセージでお気軽にどうぞ";
+  btn.disabled = true;
+}
 
 function copyMsg(btn){
   var msg = decodeURIComponent(btn.getAttribute("data-msg")||"");
