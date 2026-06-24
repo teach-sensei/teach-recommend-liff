@@ -282,9 +282,9 @@ function render(data){
         +    (t.note?'<div class="subnote">'+t.note+'</div>':'')
         +    '<div class="badges">'+badges+'</div>'
         +    '<ul class="reasons">'+reasons+'</ul>'
-        +    '<div class="ctas"><a class="cta book" href="'+searchDest+'" onclick="openExt(\''+searchDest+'\',\'teacher_search\','+t.teacherId+');return false;">'+searchLabel+'</a></div>'
+        +    '<div class="ctas"><a class="cta book" href="'+searchDest+'" target="_blank" rel="noopener" onclick="track(\'teacher_search\','+t.teacherId+')">'+searchLabel+'</a></div>'
         +    '<div class="subnote">一覧ページで先生名を検索すると、プロフィールや空き枠を見られます。</div>'
-        +    '<div class="ctas"><a class="cta page" href="'+t.bookDest+'" onclick="openExt(\''+t.bookDest+'\',\''+(t.bookEv||'book')+'\','+t.teacherId+');return false;">'+bookLabel+'</a></div>'
+        +    '<div class="ctas"><a class="cta page" href="'+t.bookDest+'" target="_blank" rel="noopener" onclick="track(\''+(t.bookEv||'book')+'\','+t.teacherId+')">'+bookLabel+'</a></div>'
         +    '<div class="qbox"><div class="qlabel">先生に送るときの文（下の文をコピーして使えます）</div>'
         +      '<div class="qtext">'+escapeHtml(msg)+'</div>'
         +      '<button class="copy" data-msg="'+encodeURIComponent(msg)+'" onclick="copyMsg(this)">この文をコピー</button></div>'
@@ -298,16 +298,6 @@ function render(data){
 }
 function escapeHtml(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];}); }
 function track(ev,tid){ try{ fetch(GAS_URL+"?action=track&e="+encodeURIComponent(ev)+"&p="+encodeURIComponent(sel.parentId)+"&st="+encodeURIComponent(sel.studentId)+"&s="+encodeURIComponent(SID)+"&t="+encodeURIComponent(tid||"")+"&nm="+encodeURIComponent(userName||""),{mode:"no-cors",keepalive:true}); }catch(e){} }
-
-// 外部リンク（先生一覧ページ / アプリのディープリンク）はLIFF内では外部ブラウザで開く。
-// LINEアプリ内ブラウザで target=_blank のディープリンクを開くと固まる/空白になるため。
-function openExt(url, ev, tid){
-  if (ev) track(ev, tid);
-  try{
-    if (window.liff && liff.isInClient && liff.isInClient()){ liff.openWindow({ url:url, external:true }); return; }
-  }catch(e){}
-  window.open(url, '_blank');
-}
 
 // 「わからないことがあれば聞いてください」：クリックを記録（未クリック層への後追いLINE配信の母集団判定に使う）
 // 押したら必ず「受け付けました」を画面に出す（無反応で不安にさせない）
