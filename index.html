@@ -1,524 +1,332 @@
-<!DOCTYPE html>
-<!--
-  Teach 先生向け公式LINE｜統合フロント（GitHub Pages 等の静的ホスティング用）
-  - 1ファイルで「次回提案サジェスト」と「メール連携」を兼ねる。
-  - mode は ?page=link で切替（liff.state 経由も解釈）。
-  - 静的ホスティングなのでGASの上部バーは出ない。
-  - GASへの保存はクロスオリジンのため no-cors の送信専用（レスポンスは読まず楽観的に完了表示）。
--->
+<!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-<title>Teach 先生サポート</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>先生をさがす | Teach</title>
+<!-- LIFF SDK -->
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
-  :root{--green:#1fb24a;--green-d:#159a3d;--ink:#222;--sub:#6b7280;--line:#e5e7eb;--bg:#f6f7f9;--card:#fff;--chip:#eef7f0;}
-  *{box-sizing:border-box}
-  body{margin:0;font-family:-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;color:var(--ink);background:var(--bg);line-height:1.7;-webkit-text-size-adjust:100%}
-  .wrap{max-width:560px;margin:0 auto;padding:16px 14px 40px}
-  header{display:flex;align-items:center;gap:8px;margin:4px 2px 14px}
-  header .dot{width:10px;height:10px;border-radius:50%;background:var(--green)}
-  header h1{font-size:17px;margin:0;font-weight:700}
-  header .who{margin-left:auto;font-size:12px;color:var(--sub)}
-  .lead{font-size:13px;color:var(--sub);margin:0 2px 14px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
-  label.field{display:block;font-size:13px;font-weight:700;margin:0 0 6px}
-  .hint{font-size:12px;color:var(--sub);font-weight:400;margin-left:6px}
-  .subnote{font-size:11px;color:var(--sub);margin:-8px 2px 12px;line-height:1.5}
-  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
-  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 13px;font-size:13px;cursor:pointer;user-select:none;transition:.15s}
-  .chip[aria-pressed="true"]{background:var(--chip);border-color:var(--green);color:var(--green-d);font-weight:700}
-  .modeseg{display:flex;gap:8px;margin-bottom:14px}
-  .seg{flex:1;border:1px solid var(--line);background:#fff;border-radius:12px;padding:11px 8px;cursor:pointer;text-align:center;line-height:1.3}
-  .seg b{display:block;font-size:14px;font-weight:700;color:var(--ink)}
-  .seg small{display:block;font-size:11px;color:var(--sub);margin-top:2px}
-  .seg.active{background:var(--chip);border-color:var(--green)}
-  .seg.active b{color:var(--green-d)}
-  input[type=text],input[type=email],textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 11px;font-size:15px;font-family:inherit;background:#fff;margin-bottom:12px}
-  .btn{width:100%;border:none;border-radius:12px;padding:14px;font-size:16px;font-weight:700;cursor:pointer}
-  .btn.primary{background:var(--green);color:#fff}
-  .btn.primary:active{background:var(--green-d)}
-  .btn.primary:disabled{opacity:.5}
-  .btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink);font-size:14px;padding:11px}
-  textarea.out{width:100%;background:#fbfdfb;border:1px solid var(--green);border-radius:12px;padding:13px;font-size:15px;line-height:1.7;margin-bottom:6px;min-height:150px;resize:vertical;font-family:inherit;color:var(--ink)}
-  .editnote{font-size:12px;color:var(--green-d);margin:0 2px 10px}
-  .actions{display:flex;gap:10px}
-  .actions .btn{flex:1}
-  .tip{font-size:12px;color:var(--sub);background:#fff;border:1px dashed var(--line);border-radius:10px;padding:10px 12px;margin-top:6px}
-  .err{font-size:12px;color:#b4232a;margin:0 0 12px;min-height:16px}
-  .note{font-size:12px;color:var(--sub);background:#fff;border:1px dashed var(--line);border-radius:10px;padding:11px 12px;margin-top:12px}
-  .done{display:none;text-align:center;padding:14px 0}
-  .done .ic{font-size:40px}
-  .done h2{font-size:18px;margin:8px 0 4px}
-  .done p{font-size:13.5px;color:var(--sub);margin:0}
-  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 18px;border-radius:999px;font-size:14px;opacity:0;transition:.25s;pointer-events:none}
-  .toast.show{opacity:1}
-  .foot{font-size:11px;color:var(--sub);text-align:center;margin-top:18px}
-  .chiptoggle{display:flex;align-items:center;gap:8px;font-size:13px;margin:10px 2px 2px;cursor:pointer;font-weight:700}
-  .chiptoggle input{width:18px;height:18px;accent-color:var(--green)}
-  .matsub{font-size:12px;color:var(--sub);margin:2px 2px 8px}
-  .hidden{display:none}
+  :root{ --blue:#2b8aef; --ink:#243b53; --soft:#f3f6fb; --line:#e3e9f2; }
+  *{box-sizing:border-box} body{margin:0;font-family:-apple-system,"Hiragino Kaku Gothic ProN",sans-serif;color:var(--ink);background:#fff}
+  .wrap{max-width:560px;margin:0 auto;padding:16px}
+  h1{font-size:18px;margin:8px 0 4px} .sub{color:#6b7c93;font-size:13px;margin:0 0 16px}
+  .step{display:none} .step.on{display:block}
+  .q{font-weight:700;margin:18px 0 8px;font-size:15px} .hint{color:#90a0b5;font-size:12px;font-weight:400}
+  .pill{display:inline-block;background:#eaf3ff;color:var(--blue);font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;vertical-align:middle}
+  .more{color:#6b7c93;font-size:12.5px;margin:-2px 0 10px;line-height:1.5}
+  .opts{display:flex;flex-wrap:wrap;gap:8px}
+  .opt{border:1.5px solid var(--line);border-radius:999px;padding:9px 14px;font-size:14px;background:#fff;cursor:pointer;user-select:none}
+  .opt.sel{border-color:var(--blue);background:#eaf3ff;color:var(--blue);font-weight:700}
+  .nav{display:flex;gap:10px;margin-top:22px}
+  .btn{flex:1;border:0;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer}
+  .btn.primary{background:var(--blue);color:#fff} .btn.ghost{background:var(--soft);color:var(--ink)}
+  .btn:disabled{opacity:.45}
+  /* results */
+  .card{border:1px solid var(--line);border-radius:16px;padding:14px;margin:12px 0;box-shadow:0 2px 10px rgba(40,80,140,.05)}
+  .card .top{display:flex;justify-content:space-between;align-items:center}
+  .name{font-weight:800;font-size:16px} .univ{color:#7b8aa0;font-size:12px}
+  .badges{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+  .badge{background:#fff4e5;color:#c77700;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700}
+  .badge.live{background:#e7f7ec;color:#1f9d55}
+  .reasons{margin:8px 0;padding-left:18px} .reasons li{font-size:13px;margin:3px 0}
+  .subnote{font-size:12px;color:#9aa7b8;margin:4px 0 8px}
+  .ctas{display:flex;gap:8px;margin-top:8px}
+  .cta{flex:1;text-align:center;text-decoration:none;border-radius:10px;padding:11px;font-size:14px;font-weight:700}
+  .cta.book{background:var(--blue);color:#fff} .cta.page{background:var(--soft);color:var(--ink)}
+  .qbox{margin-top:10px;background:var(--soft);border-radius:12px;padding:10px}
+  .qlabel{font-size:11.5px;color:#7b8aa0;margin-bottom:6px}
+  .qtext{font-size:13px;line-height:1.55;color:var(--ink);white-space:pre-wrap;background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px;margin-bottom:8px}
+  .copy{width:100%;border:0;background:var(--blue);color:#fff;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer}
+  .loading{text-align:center;color:#7b8aa0;padding:30px}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <span class="dot"></span>
-    <h1 id="title">次回提案サジェスト</h1>
-    <span class="who" id="who"></span>
-  </header>
+  <h1>お子さんに合う先生をさがす</h1>
+  <p class="sub">いくつか選ぶだけ。実績データから、合う先生を理由つきでご提案します。</p>
+  <div id="greet" style="display:none;background:#eaf3ff;color:var(--blue);border-radius:12px;padding:10px 12px;font-size:13px;font-weight:700;margin-bottom:6px"></div>
 
-  <!-- ============ 読み込み中（連携状態の確認） ============ -->
-  <div id="checking" class="card" style="text-align:center;color:var(--sub)">読み込み中…</div>
+  <!-- STEP loading 初期判定（連携済みかどうか確認してから画面を出す） -->
+  <div class="step on" data-step="loading"><div class="loading">確認中…</div></div>
 
-  <!-- ============ 提案ビュー ============ -->
-  <div id="proposalView" class="hidden">
-    <p class="lead">送る相手を選ぶと、そのまま送れるメッセージの下書きができます。コピーしてTeachアプリのメッセージへ。</p>
-    <div class="modeseg" id="modeToggle">
-      <button class="seg active" type="button" data-mode="proposal"><b>次回の提案</b><small>教えている生徒へ</small></button>
-      <button class="seg" type="button" data-mode="offer"><b>はじめてのオファー</b><small>これからの生徒へ</small></button>
-    </div>
-    <div class="card hidden" id="recents">
-      <label class="field">最近の生徒 <span class="hint">タップで生徒名・前回内容を自動入力</span></label>
-      <div class="chips" id="recentChips"></div>
-    </div>
-    <div class="card">
-      <label class="field" id="relLabel">① どの生徒へ？</label>
-      <div class="chips" id="rel">
-        <span class="chip" data-v="recent" data-mode="proposal" aria-pressed="true">最近指導した生徒</span>
-        <span class="chip" data-v="gap" data-mode="proposal">しばらく予約が空いている生徒</span>
-        <span class="chip" data-v="favorite" data-mode="offer">お気に入りしてくれた生徒へ</span>
-        <span class="chip" data-v="offer" data-mode="offer">はじめての生徒へ</span>
-      </div>
-      <div id="typeBlock">
-        <label class="field">② 次の提案タイプ <span class="hint">予約につながりやすい型</span></label>
-        <div class="chips" id="type">
-          <span class="chip" data-v="continue" aria-pressed="true">単元の続き</span>
-          <span class="chip" data-v="review">前回の復習</span>
-          <span class="chip" data-v="schedule">日程を提示</span>
-          <span class="chip" data-v="exam">テスト・行事対策</span>
-          <span class="chip" data-v="weak">苦手分野の集中</span>
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <label class="field">③ ひとことメモ <span class="hint">任意・具体的なほど良い文になります</span></label>
-      <input type="text" id="name" placeholder="生徒の呼び名（例：ゆうと）※自動で「さん」が付きます" />
-      <input type="text" id="prev" placeholder="前回やった内容（例：二次関数のグラフ）" />
-      <input type="text" id="next" placeholder="次回やる内容（例：二次方程式の解き方）" />
-      <input type="text" id="date" placeholder="候補日時（例：今週木曜20時〜）" />
-      <div class="subnote">※空いている候補日時はできるだけ記入を。そのまま日程提示にも使えます。</div>
-    </div>
-    <div class="card" id="matCard">
-      <label class="field">教材から提案する <span class="hint">任意・選ぶと下書きに教材を添えます</span></label>
-      <p class="matsub">「もし教材が未定なら、これで進められます」と具体的に示せます。生徒が自分の教材を持っている場合にも対応します。</p>
-      <label class="field" style="font-size:12px;color:var(--sub)">区分</label>
-      <div class="chips" id="matSeg"></div>
-      <div id="matGradeWrap" class="hidden">
-        <label class="field" style="font-size:12px;color:var(--sub)">学年</label>
-        <div class="chips" id="matGrade"></div>
-      </div>
-      <div id="matSubjectWrap" class="hidden">
-        <label class="field" style="font-size:12px;color:var(--sub)">科目・つまずき</label>
-        <div class="chips" id="matSubject"></div>
-      </div>
-      <div id="matCandWrap" class="hidden">
-        <p class="matsub" id="matPain"></p>
-        <label class="field" style="font-size:12px;color:var(--sub)">基礎固め</label>
-        <div class="chips" id="matBasic"></div>
-        <label class="field" style="font-size:12px;color:var(--sub)">標準〜入試</label>
-        <div class="chips" id="matStandard"></div>
-        <label class="chiptoggle"><input type="checkbox" id="matOwn" /> 生徒が自分の教材を持っている（その教材を主軸にする）</label>
-        <button class="btn ghost" id="matClear" style="margin-top:10px">教材の選択をクリア</button>
-      </div>
-    </div>
-    <button class="btn primary" id="gen">提案文をつくる</button>
-    <div class="card" style="margin-top:14px">
-      <label class="field">メッセージの下書き <span class="hint">そのまま編集できます</span></label>
-      <textarea class="out" id="out" placeholder="「提案文をつくる」を押すと、ここに下書きが出ます。"></textarea>
-      <p class="editnote">✏️ コピーする前に、一言だけ自分の言葉に変えてから送るのがおすすめです。そのままだと少し機械的に見えることがあります。</p>
-      <button class="btn primary" id="copyopen" style="margin-bottom:10px">コピーしてアプリで送る</button>
-      <div class="actions">
-        <button class="btn ghost" id="copy">コピーのみ</button>
-        <button class="btn ghost" id="regen">別の言い回し</button>
-      </div>
-      <div class="tip">💡 ヒント：次回やる内容を具体的に書くほど予約につながりやすくなります。「また連絡します」より「次は◯◯を、◯日に」。</div>
-    </div>
+  <!-- STEP link 連携（未連携のときだけ表示） -->
+  <div class="step" data-step="link">
+    <div class="q">Teachのアカウントと連携しますか？ <span class="pill">任意</span></div>
+    <div class="more">連携すると、お子さんの学年やお悩みを引き継いで、より的確にご提案できます。さらに、授業の翌朝には学習レポートもお届けします📨 未連携でもこのまま探せます。</div>
+    <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="ご登録のメールアドレス"
+           style="width:100%;padding:12px;border:1.5px solid var(--line);border-radius:12px;font-size:15px;margin:4px 0">
+    <div id="linkmsg" class="more" style="color:#c0392b"></div>
+    <div class="nav"><button class="btn ghost" onclick="skipLink()">あとで</button><button class="btn primary" onclick="doLink()">連携する</button></div>
   </div>
 
-  <!-- ============ 連携ビュー ============ -->
-  <div id="linkView" class="hidden">
-    <div class="card" id="linkForm">
-      <p class="lead">Teachに登録しているメールアドレスを入力すると、あなたの授業に合わせたお知らせや、次回提案の下書きが受け取れるようになります。</p>
-      <label class="field" for="email">Teachのメールアドレス</label>
-      <input type="email" id="email" placeholder="you@example.com" autocomplete="email" inputmode="email" />
-      <p class="err" id="err"></p>
-      <button class="btn primary" id="submitLink">連携する</button>
-      <div class="note">入力したメールはTeachアカウントとの紐付けにのみ使います。先生↔生徒の直接のやり取りには使いません。</div>
-    </div>
-    <div class="done" id="linkDone">
-      <div class="ic">✅</div>
-      <h2>連携を受け付けました</h2>
-      <p>授業に合わせたお知らせが届くようになります。</p>
-    </div>
+  <!-- STEP0 お子さん選択（保護者に複数生徒がいる場合のみ） -->
+  <div class="step" data-step="0">
+    <div class="q">どのお子さんの先生をさがしますか？</div>
+    <div class="opts" id="children"></div>
   </div>
 
-  <p class="foot">Teach 先生サポート</p>
+  <!-- STEP1 学年 -->
+  <div class="step" data-step="1">
+    <div class="q">学年は？</div>
+    <div class="opts" id="grade"></div>
+    <div class="nav"><button class="btn primary" disabled onclick="go(2)">次へ</button></div>
+  </div>
+
+  <!-- STEP2 科目 -->
+  <div class="step" data-step="2">
+    <div class="q">どの科目をみてほしい？</div>
+    <div class="opts" id="subject"></div>
+    <div class="nav"><button class="btn ghost" onclick="go(1)">戻る</button><button class="btn primary" disabled onclick="go(3)">次へ</button></div>
+  </div>
+
+  <!-- STEP3 悩み（大分類→具体） -->
+  <div class="step" data-step="3">
+    <div class="q">いちばんの悩みは？ <span class="pill">任意</span></div>
+    <div class="more">スキップOK。でも選ぶほど“あなたにぴったり”の先生に近づきます。</div>
+    <div class="opts" id="struggle"></div>
+    <div class="nav"><button class="btn ghost" onclick="go(2)">戻る</button><button class="btn primary" onclick="go(4)">次へ</button></div>
+  </div>
+
+  <!-- STEP4 希望（任意） -->
+  <div class="step" data-step="4">
+    <div class="q">先生に求めるもの <span class="pill">任意</span></div>
+    <div class="more">ここも未入力でOK。答えるほどマッチの精度が上がります。</div>
+    <div class="opts" id="pers"></div>
+    <div class="q">指導スタイル <span class="pill">任意</span></div>
+    <div class="opts" id="style"></div>
+    <div class="nav"><button class="btn ghost" onclick="go(3)">戻る</button><button class="btn primary" onclick="submit()">この内容でさがす</button></div>
+  </div>
+
+  <!-- 結果 -->
+  <div class="step" data-step="5">
+    <div id="results"></div>
+    <div class="nav"><button class="btn ghost" onclick="restart()">条件を変えてさがす</button></div>
+  </div>
 </div>
-<div class="toast" id="toast">コピーしました</div>
 
 <script>
-/* ====================== CONFIG ====================== */
-var CONFIG = {
-  LIFF_ID: "2010398006-SDXQ8ym3",
-  GAS_URL: "https://script.google.com/macros/s/AKfycbznPmaIRyDocseKbIumawcfa1Z5kwYKOc6lepPpgITwVpYP3sAAUnAMoShyf1BJLsP1FA/exec",
-  APP_LINK: "https://teach.go.link?adj_t=21tw2jal"
+// ====== 設定 ======
+var LIFF_ID  = "2006856244-1wujiAnb";                            // LINE Developers で発行
+var GAS_URL  = "https://script.google.com/macros/s/AKfycbwS99qo00x09W2xhp89-I5K7CYn4Csez7cvN79JTGog7snGsPW5Zk9WM4rTmA68fGpS/exec";   // GASウェブアプリURL
+
+// 選択肢（表示ラベル l ／ 照合用の値 v ＝タグ辞書の科目名）
+var GRADES = [{l:"小学生",v:"小学"},{l:"中学生",v:"中学"},{l:"高校生",v:"高校"}];
+var SUBJECTS = {
+  "小学":[{l:"算数",v:"算数(小)"},{l:"中学受験算数",v:"算数(中受)"},{l:"国語",v:"国語(小)"},{l:"理科",v:"理科(小)"},{l:"社会",v:"社会(小)"},{l:"英語",v:"英語(小)"}],
+  "中学":[{l:"数学",v:"数学(中)"},{l:"英語",v:"英語(中)"},{l:"国語",v:"国語(中)"},{l:"理科",v:"理科(中)"},{l:"社会",v:"社会(中)"}],
+  "高校":[{l:"数学ⅠA",v:"数学ⅠA"},{l:"数学ⅡB",v:"数学ⅡB"},{l:"数学Ⅲ",v:"数学Ⅲ"},{l:"英語",v:"英語(高)"},{l:"現代文",v:"現代文(高)"},{l:"古文",v:"古文(高)"},{l:"物理",v:"物理"},{l:"化学",v:"化学"},{l:"生物",v:"生物"},{l:"世界史",v:"世界史(高)"},{l:"日本史",v:"日本史(高)"}]
 };
-/* =================================================== */
-
-/* mode 判定: ?page=link 直接 or liff.state 経由 の両対応 */
-function getMode(){
-  try{
-    var q = new URLSearchParams(location.search);
-    if(q.get('page')) return q.get('page');
-    var st = q.get('liff.state');
-    if(st){ var inner = new URLSearchParams(st.charAt(0)==='?'?st.slice(1):st); if(inner.get('page')) return inner.get('page'); }
-  }catch(e){}
-  return 'proposal';
-}
-var MODE = getMode();
-
-/* ---- 文面テンプレート ---- */
-var GREET = {
-  recent:   function(n){ return n+"先日は授業、おつかれさまでした。"; },
-  gap:      function(n){ return n+"しばらく授業が空いてしまいましたが、その後いかがでしょうか。"; },
-  favorite: function(n){ return n+"お気に入りに登録してくれてありがとうございます。"; },
-  offer:    function(n){ return n+"はじめまして。よかったら一度、一緒に勉強できたらと思ってご連絡しました。"; }
+var STRUGGLES = {
+  "受験・試験":["受験対策","テスト対策","過去問演習","推薦対策","英検対策"],
+  "つまずき・理解":["授業についていけない","苦手意識","内容が難しい","勉強法がわからない","成績の伸び"],
+  "やる気・習慣":["モチベが低い","集中力がない","勉強嫌い","学習計画","予習・復習"],
+  "進め方":["宿題","暗記法","ノートの取り方","参考書・問題集"]
 };
-function offerBody(next){
-  return next ? "もしよければ、"+next+"を中心に、一緒に勉強を進めてみませんか。目標やペースに合わせて進めます。"
-              : "もしよければ、一度一緒に勉強してみませんか。今つまずいているところや目標に合わせて進めます。";
-}
-function body(type, prev, next){
-  var p = prev ? "前回は"+prev+"に取り組みましたね。" : "";
-  var n = next || "次のステップ";
-  switch(type){
-    case "continue": return p+"次回は、その続きとして"+n+"を一緒に進めたいと思います。";
-    case "review": return p+"定着させるために、次回は"+n+"を復習しながら、もう一段深めていきましょう。";
-    case "schedule": return (prev? p:"")+"次回は"+n+"を予定しています。";
-    case "exam": return p+n+"に向けて、次回はそこを集中的に対策していきましょう。残りの日数から逆算して進めます。";
-    case "weak": return (prev? "前回"+prev+"を見て、":"")+n+"を重点的にやると一気に楽になりそうだと感じました。次回はそこに絞って取り組みませんか。";
-  }
-  return "";
-}
-function cta(type, date){
-  var d = date || "";
-  if(type==="schedule"){
-    return d ? "直近だと"+d+"が空いていますので、よければこのあたりで進めませんか。難しければ別の候補もお出しします。"
-             : "ご都合の良い日程をいくつか教えていただければ、こちらで枠を確保します。";
-  }
-  return d ? d+"あたりで一度いかがでしょうか。ご都合に合わせて調整します。"
-           : "ご都合の良いタイミングを教えていただければ、それに合わせて日程を調整します。";
-}
-var CLOSERS = ["無理のない範囲で、気軽にお返事ください。","引き続き、しっかりサポートしていきますね。","一緒に進めていけたら嬉しいです。"];
-var state = { rel:"recent", type:"continue", closer:0, mode:"proposal",
-  segCode:"", segLabel:"", grade:"", subject:"", materialBasic:"", materialStandard:"", matOwn:false };
-var SESSION_ID = Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+var PERS = ["優しい","面倒見がいい","穏やか","親しみやすい","明るい","厳格","落ち着いている"];
+var STYLES = ["生徒に合わせる","やる気を出させる","楽しく教える","得意を伸ばす","苦手を克服"];
 
-/* 呼び捨て防止：敬称が無ければ自動で「さん」を付ける（さん/くん/君/ちゃん/様/さま 等は尊重） */
-function withHonorific(raw){
-  var s=(raw||"").trim();
-  if(!s) return "";
-  if(/(さん|くん|君|ちゃん|ちゃま|様|さま|氏|先生)$/.test(s)) return s;
-  return s+"さん";
-}
-function hasMaterial(){ return !!(state.materialBasic||state.materialStandard||state.matOwn); }
-function materialLine(){
-  if(state.matOwn) return "使いたい教材がもう決まっていれば、それを主軸に進めます。進める順番や解き直しのやり方は、私が一緒に組み立てます。";
-  var picks=[state.materialBasic,state.materialStandard].filter(Boolean);
-  if(!picks.length) return "";
-  return "もし教材がまだ決まっていなければ、"+picks.join("、")+"あたりを使って進める方法をご提案できます。すでに決めているものがあれば、それを一緒に進めても大丈夫です。";
-}
-function buildText(){
-  var name=withHonorific(document.getElementById('name').value);
-  var n=name?name+"、":"";
-  var prev=(document.getElementById('prev').value||"").trim();
-  var next=(document.getElementById('next').value||"").trim();
-  var date=(document.getElementById('date').value||"").trim();
-  var isOffer=(state.rel==='favorite'||state.rel==='offer');
-  var b=isOffer?offerBody(next):body(state.type,prev,next);
-  return [GREET[state.rel](n),b,materialLine(),cta(state.type,date),CLOSERS[state.closer%CLOSERS.length]].filter(Boolean).join("\n");
-}
-function bindChips(id,key){
-  var g=document.getElementById(id);
-  g.querySelectorAll('.chip').forEach(function(c){
-    c.addEventListener('click',function(){
-      g.querySelectorAll('.chip').forEach(function(x){x.setAttribute('aria-pressed','false');});
-      c.setAttribute('aria-pressed','true');state[key]=c.dataset.v;
-    });
-  });
-}
-function render(){ document.getElementById('out').value=buildText(); }
-function currentText(){ return (document.getElementById('out').value||"").trim(); }
-function copyText(){
-  return new Promise(function(resolve){
-    var t=currentText(); if(!t){resolve(false);return;}
-    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){resolve(true);}).catch(fb);}else{fb();}
-    function fb(){var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(e){}document.body.removeChild(ta);resolve(true);}
-  });
-}
-function openApp(){
-  if(!CONFIG.APP_LINK) return;
-  try{ if(typeof liff!=="undefined"&&liff.openWindow){liff.openWindow({url:CONFIG.APP_LINK,external:true});}else{window.open(CONFIG.APP_LINK,"_blank");} }
-  catch(e){ window.open(CONFIG.APP_LINK,"_blank"); }
-}
-function showToast(msg){var el=document.getElementById('toast');if(msg)el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},1400);}
+var sel = {grade:"",subject:"",struggles:[],pers:[],styles:[],parentId:"",studentId:""};
+var userId = "";
+var userName = "";          // LINE表示名（Slack通知・連携記録で「誰か」を分かるように）
+var userPicture = "";       // LINEアイコンURL
+var pendingStruggle = "";
 
-var liffProfile=null;
-var linked=false, linkedEmail="", GATE=false;
-/* GASへPOST（cors/text-plain＝preflight無しでレスポンスを読める）。失敗時は{ok:false} */
-function gasFetch(payload){
-  return fetch(CONFIG.GAS_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)})
-    .then(function(r){return r.json();}).catch(function(){return {ok:false};});
-}
-function logUsage(){
-  gasFetch({action:"log",ts:new Date().toISOString(),userId:liffProfile?liffProfile.userId:"",displayName:liffProfile?liffProfile.displayName:"",rel:state.rel,type:state.type});
-}
-/* 最近の生徒チップ（自動入力）。連携済みのとき1回だけ取得 */
-var recentsLoaded=false, recentsHasData=false;
-function loadRecents(){
-  if(recentsLoaded || !idToken) return;
-  recentsLoaded=true;
-  var box=document.getElementById('recents'), wrap=document.getElementById('recentChips');
-  // 取得前に「読み込み中」を表示（待たずに手入力し始めるのを防ぐ）
-  wrap.innerHTML='<span style="font-size:12px;color:var(--sub)">最近の生徒を読み込み中… 少し待つとタップで自動入力できます</span>';
-  if(state.mode==='proposal') box.classList.remove('hidden');
-  gasFetch({action:"lessons",idToken:idToken}).then(function(res){
-    if(!res||!res.lessons||!res.lessons.length){ box.classList.add('hidden'); return; }
-    recentsHasData=true;
-    wrap.innerHTML="";
-    res.lessons.forEach(function(L){
-      var chip=document.createElement('span');
-      chip.className='chip';
-      chip.textContent=L.student+(L.subject?("・"+L.subject):"");
-      chip.addEventListener('click',function(){
-        document.getElementById('name').value=L.student;        // 生成時にwithHonorificで「さん」付与
-        if(L.subject) document.getElementById('prev').value=L.subject;
-        if(L.want) document.getElementById('next').value=L.want;
-        state.closer=0; render();
-        document.getElementById('out').scrollIntoView({behavior:'smooth',block:'center'});
-      });
-      wrap.appendChild(chip);
-    });
-    if(state.mode==='proposal') box.classList.remove('hidden'); else box.classList.add('hidden');
-  });
-}
-/* つくるもの（次回提案／はじめてのオファー）で欄を出し分け */
-function applyMode(mode){
-  state.mode=mode;
-  var isOffer=(mode==='offer');
-  document.querySelectorAll('#modeToggle .seg').forEach(function(b){ b.classList.toggle('active', b.dataset.mode===mode); });
-  // ①チップを出し分け、先頭をデフォルト選択に
-  var first=null;
-  document.querySelectorAll('#rel .chip').forEach(function(c){
-    var show=(c.dataset.mode===mode);
-    c.style.display=show?'':'none';
-    c.setAttribute('aria-pressed','false');
-    if(show && !first) first=c;
-  });
-  if(first){ first.setAttribute('aria-pressed','true'); state.rel=first.dataset.v; }
-  document.getElementById('relLabel').textContent = isOffer ? '① どんなオファー？' : '① どの生徒へ？';
-  document.getElementById('typeBlock').style.display = isOffer ? 'none' : '';
-  document.getElementById('prev').style.display = isOffer ? 'none' : '';
-  document.getElementById('next').placeholder = isOffer ? '提案する科目・内容（例：英語の長文読解）' : '次回やる内容（例：二次方程式の解き方）';
-  document.getElementById('name').placeholder = isOffer ? '生徒の呼び名（任意・自動で「さん」）' : '生徒の呼び名（例：ゆうと）※自動で「さん」が付きます';
-  var rec=document.getElementById('recents');
-  if(isOffer) rec.classList.add('hidden');
-  else if(recentsHasData) rec.classList.remove('hidden');
-}
-/* checking / proposal / link の3画面を排他表示 */
-function showOnly(id){
-  ['checking','proposalView','linkView'].forEach(function(x){
-    var el=document.getElementById(x); if(el) el.classList.toggle('hidden', x!==id);
-  });
-}
-function showProposal(){ GATE=false; showOnly('proposalView'); document.getElementById('title').textContent='次回提案サジェスト'; loadRecents(); loadSegments(); logMat('open'); }
-function showLink(gate){
-  GATE=!!gate; showOnly('linkView'); document.getElementById('title').textContent='メール連携';
-  var lead=document.querySelector('#linkForm .lead');
-  if(lead) lead.textContent= gate
-    ? '提案文サジェストを使うには、最初にTeachに登録しているメールアドレスで連携してください。連携すると、あなたの授業に合わせた下書きやお知らせが届くようになります。'
-    : 'Teachに登録しているメールアドレスを入力すると、あなたの授業に合わせたお知らせや、次回提案の下書きが受け取れるようになります。';
-}
-
-/* ---- 連携 ---- */
-var idToken=null;
-function isEmail(v){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);}
-function submitLink(){
-  var email=(document.getElementById('email').value||"").trim();
-  var err=document.getElementById('err');
-  if(!isEmail(email)){err.textContent="メールアドレスの形式を確認してください。";return;}
-  err.textContent="";
-  var btn=document.getElementById('submitLink');btn.disabled=true;btn.textContent="連携中…";
-  gasFetch({action:"link",idToken:idToken,email:email}).then(function(res){
-    if(res&&res.ok){
-      linked=true; linkedEmail=email;
-      if(GATE){ showProposal(); showToast("連携しました"); }
-      else{
-        document.getElementById('linkForm').style.display="none";
-        document.getElementById('linkDone').style.display="block";
-      }
-    }else{
-      btn.disabled=false; btn.textContent="連携する";
-      err.textContent=(res&&res.error==='invalid_token')
-        ? "LINEのログイン情報が取得できませんでした。LINEアプリ内のメニューから開いて、もう一度お試しください。"
-        : (res&&res.error==='not_registered')
-        ? "そのメールではTeachの登録が見つかりませんでした。Teachアプリに登録しているメールアドレスを入力してください。"
-        : "連携に失敗しました。メールアドレスをご確認のうえ、少し時間をおいて再度お試しください。";
-    }
-  });
-}
-
-/* ---- 教材サジェスト ---- */
-function matApi(params){ return gasFetch(Object.assign({action:'materials'},params)).then(function(r){return (r&&r.ok)?r.data:null;}); }
-function logMat(event){
-  gasFetch({action:'matlog',session_id:SESSION_ID,ts:new Date().toISOString(),
-    userId:liffProfile?liffProfile.userId:"",displayName:liffProfile?liffProfile.displayName:"",
-    mode:state.mode,event:event,seg:state.segCode,grade:state.grade,subject:state.subject,
-    material_basic:state.materialBasic,material_standard:state.materialStandard,
-    own_flag:state.matOwn,has_schedule:!!(document.getElementById('date').value||"").trim()});
-}
-function makeChip(text,cb){var s=document.createElement('span');s.className='chip';s.textContent=text;s.addEventListener('click',function(){cb(s);});return s;}
-function selectOne(box,el){box.querySelectorAll('.chip').forEach(function(x){x.setAttribute('aria-pressed','false');});el.setAttribute('aria-pressed','true');}
-function pickToggle(box,el,setVal,clearVal){
-  var was=el.getAttribute('aria-pressed')==='true';
-  box.querySelectorAll('.chip').forEach(function(x){x.setAttribute('aria-pressed','false');});
-  if(was){clearVal();}else{el.setAttribute('aria-pressed','true');setVal();}
-  render();
-}
-function clearChips(id){var b=document.getElementById(id);if(b)b.innerHTML="";}
-function hideEl(id){document.getElementById(id).classList.add('hidden');}
-function showEl(id){document.getElementById(id).classList.remove('hidden');}
-var matSegLoaded=false;
-function loadSegments(){
-  if(matSegLoaded) return; matSegLoaded=true;
-  var box=document.getElementById('matSeg'); box.innerHTML='<span class="matsub">読み込み中…</span>';
-  matApi({}).then(function(list){
-    box.innerHTML=""; if(!list){box.innerHTML='<span class="matsub">読み込みに失敗しました</span>';matSegLoaded=false;return;}
-    list.forEach(function(s){ box.appendChild(makeChip(s.segment,function(el){
-      selectOne(box,el); state.segCode=s.seg_code; state.segLabel=s.segment; onSeg(); })); });
-  });
-}
-function onSeg(){
-  state.grade="";state.subject="";state.materialBasic="";state.materialStandard="";
-  hideEl('matSubjectWrap');hideEl('matCandWrap');clearChips('matSubject');
-  showEl('matGradeWrap');
-  var box=document.getElementById('matGrade');box.innerHTML='<span class="matsub">読み込み中…</span>';
-  matApi({seg:state.segCode}).then(function(list){
-    box.innerHTML="";(list||[]).forEach(function(g){box.appendChild(makeChip(g,function(el){
-      selectOne(box,el);state.grade=g;onGrade();}));});
-  });
-  render();
-}
-function onGrade(){
-  state.subject="";state.materialBasic="";state.materialStandard="";
-  hideEl('matCandWrap');
-  showEl('matSubjectWrap');
-  var box=document.getElementById('matSubject');box.innerHTML='<span class="matsub">読み込み中…</span>';
-  matApi({seg:state.segCode,grade:state.grade}).then(function(list){
-    box.innerHTML="";(list||[]).forEach(function(sj){box.appendChild(makeChip(sj,function(el){
-      selectOne(box,el);onSubject(sj);}));});
-  });
-  render();
-}
-function onSubject(sj){
-  state.subject=sj;state.materialBasic="";state.materialStandard="";
-  logMat('material_select');
-  showEl('matCandWrap');
-  var bb=document.getElementById('matBasic'),sb=document.getElementById('matStandard');
-  bb.innerHTML='<span class="matsub">読み込み中…</span>';sb.innerHTML="";
-  document.getElementById('matOwn').checked=false;state.matOwn=false;
-  matApi({seg:state.segCode,grade:state.grade,subject:sj}).then(function(c){
-    if(!c){bb.innerHTML='<span class="matsub">候補が見つかりませんでした</span>';return;}
-    document.getElementById('matPain').textContent=c.pain?('つまずき例：'+c.pain):'';
-    bb.innerHTML="";(c.basic||[]).forEach(function(m){bb.appendChild(makeChip(m,function(el){
-      pickToggle(bb,el,function(){state.materialBasic=m;},function(){state.materialBasic="";});}));});
-    sb.innerHTML="";(c.standard||[]).forEach(function(m){sb.appendChild(makeChip(m,function(el){
-      pickToggle(sb,el,function(){state.materialStandard=m;},function(){state.materialStandard="";});}));});
-    render();
-  });
-}
-function clearMaterial(){
-  state.segCode="";state.segLabel="";state.grade="";state.subject="";state.materialBasic="";state.materialStandard="";state.matOwn=false;
-  var seg=document.getElementById('matSeg');if(seg)seg.querySelectorAll('.chip').forEach(function(x){x.setAttribute('aria-pressed','false');});
-  hideEl('matGradeWrap');hideEl('matSubjectWrap');hideEl('matCandWrap');
-  clearChips('matGrade');clearChips('matSubject');clearChips('matBasic');clearChips('matStandard');
-  document.getElementById('matOwn').checked=false;
-  render();
-}
-function initMaterials(){
-  document.getElementById('matOwn').addEventListener('change',function(){state.matOwn=this.checked;render();});
-  document.getElementById('matClear').addEventListener('click',clearMaterial);
-}
-
-/* ---- 画面切替＆イベント ---- */
-function initProposal(){
-  bindChips('rel','rel');bindChips('type','type');
-  document.querySelectorAll('#modeToggle .seg').forEach(function(b){ b.addEventListener('click',function(){ applyMode(b.dataset.mode); }); });
-  applyMode('proposal');
-  document.getElementById('gen').addEventListener('click',function(){state.closer=0;render();logUsage();if(hasMaterial())logMat('generate');});
-  document.getElementById('regen').addEventListener('click',function(){state.closer++;render();});
-  document.getElementById('copy').addEventListener('click',function(){copyText().then(function(ok){if(ok){showToast("コピーしました");if(hasMaterial())logMat('copy');}});});
-  document.getElementById('copyopen').addEventListener('click',function(){copyText().then(function(ok){if(!ok)return;if(hasMaterial())logMat('copy');showToast("コピーしました。アプリを開きます");setTimeout(openApp,600);});});
-  initMaterials();
-  if(!CONFIG.APP_LINK){var co=document.getElementById('copyopen');if(co)co.style.display='none';var c2=document.getElementById('copy');if(c2){c2.classList.remove('ghost');c2.classList.add('primary');c2.textContent='コピー';}}
-}
-function initLink(){
-  document.getElementById('submitLink').addEventListener('click',submitLink);
-  document.getElementById('email').addEventListener('keydown',function(e){if(e.key==="Enter")submitLink();});
-}
-
-/* ハンドラは両方用意しておく（画面の出し分けは afterStatus で行う） */
-initProposal();
-initLink();
-showOnly('checking');   // 連携状態を確認するまでロック
-
-/* 連携状態の確認が終わったら画面を決める */
-function afterStatus(){
-  if(MODE==='link'){
-    if(linked){
-      showOnly('linkView');
-      document.getElementById('title').textContent='メール連携';
-      document.getElementById('linkForm').style.display='none';
-      var done=document.getElementById('linkDone');
-      done.querySelector('h2').textContent='すでに連携済みです';
-      done.querySelector('p').textContent=linkedEmail?('連携メール：'+linkedEmail):'授業に合わせたお知らせが届きます。';
-      done.style.display='block';
-    }else{
-      showLink(false);   // 通常の連携画面
-    }
-    return;
-  }
-  // 提案モード：連携済みなら提案ツール、未連携なら連携ゲート
-  if(linked){ showProposal(); }
-  else{ showLink(true); }
-}
-
-/* ---- LIFF 初期化 ＋ 連携状態チェック ---- */
-(function initLiff(){
-  if(!CONFIG.LIFF_ID||typeof liff==="undefined"){ afterStatus(); return; }
-  liff.init({liffId:CONFIG.LIFF_ID}).then(function(){
-    try{ idToken=liff.getIDToken(); }catch(e){}
-    if(liff.getProfile){
-      liff.getProfile().then(function(p){liffProfile=p;document.getElementById('who').textContent=p.displayName+" 先生";}).catch(function(){});
-    }
-    gasFetch({action:"status",idToken:idToken}).then(function(res){
-      linked=!!(res&&res.linked); linkedEmail=(res&&res.email)||"";
-      afterStatus();
-    });
-  }).catch(function(){ afterStatus(); });
+// LIFF初期化（LINE外でも動くようフォールバック）→ 本人特定して先回り
+(async function(){
+  try { await liff.init({liffId: LIFF_ID}); if (liff.isLoggedIn()){ var p = await liff.getProfile(); userId = p.userId; userName = p.displayName || ""; userPicture = p.pictureUrl || ""; } }
+  catch(e){ userId = "web-" + Math.random().toString(36).slice(2,8); }
+  initPersonalize();
 })();
+
+// 保護者→子ども特定。複数いれば選ばせ、1人なら学年・お悩みを先回り
+async function initPersonalize(){
+  if (!userId || userId.indexOf("web-")===0){ go("link"); return; }   // 未ログイン/LINE外→連携を促す
+  try {
+    var r = await fetch(GAS_URL+"?action=whoami&uid="+encodeURIComponent(userId)).then(function(x){return x.json();});
+    if (r.linked){ sel.parentId = r.parentId; handleLinked(r.children); }  // 連携済み→認証は出さず先へ
+    else { go("link"); }                               // 未連携のときだけ連携画面
+  } catch(e){ go("link"); }
+}
+var myChildren = [];                                   // 連携で取得したお子さん一覧（選び直し用に保持）
+var childRouted = false;                                // 初回ルーティング済みフラグ（連打や遅延応答での二重表示を防ぐ）
+function handleLinked(children){
+  if (childRouted) return;                              // 既に振り分け済みなら無視（連打対策）
+  childRouted = true;
+  myChildren = children || [];
+  if (!myChildren.length){ go(1); return; }
+  if (myChildren.length === 1){ applyChild(myChildren[0]); go(1); }
+  else { renderChildren(myChildren); go(0); }
+}
+// 後から「お子さんを選び直す」
+function reselectChild(){
+  if (myChildren.length > 1){ renderChildren(myChildren); go(0); }
+}
+function skipLink(){ go(1); }
+var linking = false;                                   // 連携リクエスト実行中フラグ（連打防止）
+function doLink(){
+  if (linking) return;                                 // 処理中の追加タップは無視
+  var email=(document.getElementById("email").value||"").trim();
+  var msg=document.getElementById("linkmsg"); msg.textContent="";
+  if(!email){ msg.textContent="メールアドレスを入力してください"; return; }
+  linking = true;
+  var btn=document.querySelector('[data-step="link"] .primary');
+  var orig = btn ? btn.textContent : "";
+  if(btn){ btn.disabled=true; btn.textContent="確認中…"; }
+  function reset(){ linking=false; if(btn){ btn.disabled=false; btn.textContent=orig; } }
+  fetch(GAS_URL+"?action=link&uid="+encodeURIComponent(userId)+"&email="+encodeURIComponent(email)+"&nm="+encodeURIComponent(userName||"")+"&pic="+encodeURIComponent(userPicture||""))
+    .then(function(x){return x.json();})
+    .then(function(r){
+      if(r.linked){ sel.parentId=r.parentId; handleLinked(r.children); }   // 画面が進むのでボタンは戻さない
+      else if(r.notFound){ msg.textContent="そのメールでは見つかりませんでした。ご登録のメールをご確認ください。"; reset(); }
+      else { msg.textContent="連携に失敗しました。「あとで」で進めても大丈夫です。"; reset(); }
+    })
+    .catch(function(){ msg.textContent="通信エラーが発生しました。「あとで」で進めても大丈夫です。"; reset(); });
+}
+function renderChildren(children){
+  var box=document.getElementById("children"); box.innerHTML="";
+  children.forEach(function(ch){
+    var d=document.createElement("div"); d.className="opt";
+    d.textContent = (ch.name||"お子さん") + (ch.grade?"（"+ch.grade+"）":"");
+    d.onclick=function(){ applyChild(ch); go(1); };
+    box.appendChild(d);
+  });
+}
+function applyChild(ch){
+  sel.studentId = ch.studentId;
+  var g=document.getElementById("greet");
+  g.style.display="block";
+  var label = (ch.name||"お子さん") + (ch.grade?"（"+ch.grade+"）":"") + "の先生をさがします";
+  g.innerHTML = label + (myChildren.length>1
+    ? ' <a href="#" onclick="reselectChild();return false;" style="color:var(--blue);font-weight:700;font-size:12px;margin-left:6px">お子さんを選び直す</a>'
+    : '');
+  if (ch.gradeBand){ sel.grade=ch.gradeBand; selectChip("grade",ch.gradeBand); renderSubjects(); var nb=document.querySelector('[data-step="1"] .primary'); if(nb) nb.disabled=false; }
+  if (ch.struggle){ pendingStruggle=ch.struggle; preselectStruggle(); }
+}
+function selectChip(elId,val){ var box=document.getElementById(elId); if(!box) return; [].forEach.call(box.children,function(c){ if((c.dataset&&c.dataset.val||c.textContent)===val) c.classList.add("sel"); }); }
+function preselectStruggle(){
+  var box=document.getElementById("struggle"); if(!box||!pendingStruggle) return;
+  [].forEach.call(box.children,function(c){ if(c.className==="opt" && c.textContent && (pendingStruggle.indexOf(c.textContent)>=0 || c.textContent.indexOf(pendingStruggle)>=0)) c.classList.add("sel"); });
+  sel.struggles=selectedIn("struggle");
+}
+
+// チップ生成
+function chips(elId, items, multi, onpick){
+  var box = document.getElementById(elId); box.innerHTML="";
+  items.forEach(function(it){
+    var label = (typeof it==="string") ? it : it.l;
+    var val   = (typeof it==="string") ? it : it.v;
+    var d=document.createElement("div"); d.className="opt"; d.textContent=label; d.dataset.val=val;
+    d.onclick=function(){
+      if(multi){ d.classList.toggle("sel"); }
+      else { [].forEach.call(box.children,function(c){c.classList.remove("sel");}); d.classList.add("sel"); }
+      onpick(val,d);
+    };
+    box.appendChild(d);
+  });
+}
+function selectedIn(elId){ return [].filter.call(document.getElementById(elId).children,function(c){return c.classList.contains("sel");}).map(function(c){return c.dataset.val||c.textContent;}); }
+
+// 初期描画
+chips("grade",GRADES,false,function(v){ sel.grade=v; document.querySelector('[data-step="1"] .primary').disabled=false; renderSubjects(); });
+chips("pers",PERS,true,function(){ sel.pers=selectedIn("pers"); });
+chips("style",STYLES,true,function(){ sel.styles=selectedIn("style"); });
+function renderSubjects(){ chips("subject",SUBJECTS[sel.grade]||[],false,function(v){ sel.subject=v; document.querySelector('[data-step="2"] .primary').disabled=false; }); }
+// 悩みは大分類見出し付き
+(function renderStruggles(){
+  var box=document.getElementById("struggle"); box.innerHTML="";
+  Object.keys(STRUGGLES).forEach(function(cat){
+    var h=document.createElement("div"); h.style.cssText="width:100%;font-size:12px;color:#90a0b5;margin:8px 0 2px"; h.textContent=cat; box.appendChild(h);
+    STRUGGLES[cat].forEach(function(v){
+      var d=document.createElement("div"); d.className="opt"; d.textContent=v;
+      d.onclick=function(){ d.classList.toggle("sel"); sel.struggles=selectedIn("struggle"); };
+      box.appendChild(d);
+    });
+  });
+})();
+
+function go(n){ [].forEach.call(document.querySelectorAll(".step"),function(s){s.classList.remove("on");}); document.querySelector('[data-step="'+n+'"]').classList.add("on"); window.scrollTo(0,0); }
+function restart(){ go(1); }
+
+function submit(){
+  go(5);
+  document.getElementById("results").innerHTML='<div class="loading">合う先生をさがしています…</div>';
+  var q = "?action=match&uid="+encodeURIComponent(userId)+
+          "&parentId="+encodeURIComponent(sel.parentId)+
+          "&studentId="+encodeURIComponent(sel.studentId)+
+          "&grade="+encodeURIComponent(sel.grade)+
+          "&subject="+encodeURIComponent(sel.subject)+
+          "&struggles="+encodeURIComponent(sel.struggles.join(","))+
+          "&personalities="+encodeURIComponent(sel.pers.join(","))+
+          "&styles="+encodeURIComponent(sel.styles.join(","));
+  fetch(GAS_URL+q).then(function(r){return r.json();}).then(render).catch(function(){
+    document.getElementById("results").innerHTML='<div class="loading">うまく取得できませんでした。条件を変えてお試しください。</div>';
+  });
+}
+
+var SID="";
+function render(data){
+  SID = data.sessionId || "";
+  var res=data.results||[];
+  if(!res.length){ document.getElementById("results").innerHTML='<div class="loading">条件に合う先生が見つかりませんでした。悩みや希望を減らしてみてください。</div>'; return; }
+  var html="";
+  res.forEach(function(t){
+    var badges=(t.badges||[]).map(function(b){ var live=/受付中|空き|最短/.test(b)?" live":""; return '<span class="badge'+live+'">'+b+'</span>'; }).join("");
+    var reasons=(t.reasons||[]).map(function(r){return "<li>"+r+"</li>";}).join("");
+    var searchDest = t.searchDest || "https://t-ch.co.jp/teachers/";
+    var searchLabel = t.searchLabel || ('先生一覧で「'+t.nickname+'」を探す');
+    var bookLabel = t.bookLabel || (t.isRequest ? '日時をリクエスト' : 'この先生で予約する');
+    var msg = t.copyText || "";
+    html+= '<div class="card">'
+        +    '<div class="top"><div><span class="name">'+t.nickname+'</span> <span class="univ">'+t.univ+'</span></div></div>'
+        +    (t.note?'<div class="subnote">'+t.note+'</div>':'')
+        +    '<div class="badges">'+badges+'</div>'
+        +    '<ul class="reasons">'+reasons+'</ul>'
+        +    '<div class="ctas"><a class="cta book" href="'+searchDest+'" target="_blank" rel="noopener" onclick="track(\'teacher_search\','+t.teacherId+')">'+searchLabel+'</a></div>'
+        +    '<div class="subnote">一覧ページで先生名を検索すると、プロフィールや空き枠を見られます。</div>'
+        +    '<div class="ctas"><a class="cta page" href="'+t.bookDest+'" target="_blank" rel="noopener" onclick="track(\''+(t.bookEv||'book')+'\','+t.teacherId+')">'+bookLabel+'</a></div>'
+        +    '<div class="qbox"><div class="qlabel">先生に送るときの文（下の文をコピーして使えます）</div>'
+        +      '<div class="qtext">'+escapeHtml(msg)+'</div>'
+        +      '<button class="copy" data-msg="'+encodeURIComponent(msg)+'" onclick="copyMsg(this)">この文をコピー</button></div>'
+        +  '</div>';
+  });
+  html += '<div class="qbox" id="askbox" style="text-align:center;margin-top:14px">'
+       +    '<div class="qlabel">先生選びで迷ったら</div>'
+       +    '<button class="copy" onclick="askHelp(this)">わからないことがあれば聞いてください</button>'
+       +  '</div>';
+  document.getElementById("results").innerHTML=html;
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];}); }
+function track(ev,tid){ try{ fetch(GAS_URL+"?action=track&e="+encodeURIComponent(ev)+"&p="+encodeURIComponent(sel.parentId)+"&st="+encodeURIComponent(sel.studentId)+"&s="+encodeURIComponent(SID)+"&t="+encodeURIComponent(tid||"")+"&nm="+encodeURIComponent(userName||""),{mode:"no-cors",keepalive:true}); }catch(e){} }
+
+// 「わからないことがあれば聞いてください」：クリックを記録（未クリック層への後追いLINE配信の母集団判定に使う）
+// 押したら必ず「受け付けました」を画面に出す（無反応で不安にさせない）
+function askHelp(btn){
+  track("ask_help","");
+  var inClient = !!(window.liff && liff.isInClient && liff.isInClient());
+  if (inClient){
+    try { liff.sendMessages([{type:"text", text:"先生選びで相談したいことがあります🙇"}]); } catch(e){}
+  }
+  var box = document.getElementById("askbox");
+  if (box){
+    box.innerHTML =
+        '<div class="qlabel">受け付けました</div>'
+      + '<div class="qtext">ご相談ありがとうございます。'
+      + (inClient ? 'このLINEのトークで、担当から順番にお返事します。' : 'LINEのトークから、担当が順番にお返事します。')
+      + '少しだけお待ちくださいね。</div>'
+      + (inClient ? '<button class="copy" onclick="try{liff.closeWindow()}catch(e){}">トークに戻る</button>' : '');
+  } else if (btn){
+    btn.textContent = "受け付けました。トークでお返事します";
+    btn.disabled = true;
+  }
+}
+
+function copyMsg(btn){
+  var msg = decodeURIComponent(btn.getAttribute("data-msg")||"");
+  function done(){ var o=btn.textContent; btn.textContent="コピーしました（アプリの質問欄に貼れます）"; setTimeout(function(){btn.textContent=o;},1800); }
+  if (navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(msg).then(done, done); }
+  else { var ta=document.createElement("textarea"); ta.value=msg; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");}catch(e){} ta.remove(); done(); }
+}
 </script>
 </body>
 </html>
