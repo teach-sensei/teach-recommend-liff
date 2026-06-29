@@ -14,8 +14,8 @@
     h1{font-size:20px;margin:0 0 4px;}
     .lead{color:var(--muted);font-size:14px;margin:0 0 16px;}
     .code-box{text-align:center;background:#f0fff0;border:2px dashed var(--brand);border-radius:12px;padding:18px;margin:8px 0 14px;}
-    .code{font-size:34px;font-weight:800;letter-spacing:4px;color:var(--brand-dark);font-family:monospace;}
-    .btn{display:block;width:100%;border:none;border-radius:10px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;}
+    .code{font-size:32px;font-weight:800;letter-spacing:2px;color:var(--brand-dark);font-family:monospace;word-break:break-all;}
+    .btn{display:block;width:100%;border:none;border-radius:10px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;text-align:center;text-decoration:none;}
     .btn-primary{background:var(--brand);color:#fff;}
     .btn-sub{background:#fff;color:var(--brand-dark);border:1.5px solid var(--brand);margin-top:10px;}
     .stats{display:flex;gap:10px;}
@@ -35,12 +35,12 @@
     <div id="main" style="display:none;">
       <div class="card">
         <h1>お友達を招待する</h1>
-        <p class="lead">あなたの紹介コードをお友達に伝えてください。お友達が登録すると、双方に60分授業1回無料の特典が届きます。</p>
+        <p class="lead">あなたの紹介IDをお友達に伝えてください。お友達が登録時にこのIDを入力すると、双方に60分授業1回無料の特典が届きます。</p>
         <div class="code-box">
-          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">あなたの紹介コード</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">あなたの紹介ID（保護者ID）</div>
           <div class="code" id="code">------</div>
         </div>
-        <button class="btn btn-primary" id="copyBtn">コードをコピー</button>
+        <button class="btn btn-primary" id="copyBtn">紹介IDをコピー</button>
         <button class="btn btn-sub" id="shareBtn">LINEで友達に送る</button>
       </div>
 
@@ -56,12 +56,19 @@
       <div class="card">
         <h1 style="font-size:16px;">招待のしかた</h1>
         <ol class="steps">
-          <li>上のコードをコピー、または「LINEで友達に送る」</li>
+          <li>上の紹介IDをコピー、または「LINEで友達に送る」</li>
           <li>お友達がTeachアプリに新規登録（生徒登録）</li>
-          <li>お友達が登録時にこのコードを入力</li>
+          <li>お友達が専用フォームでこの紹介IDを入力</li>
           <li>確認できたら双方に特典が反映されます</li>
         </ol>
       </div>
+    </div>
+
+    <!-- 学習サポート未連携のとき -->
+    <div id="notlinked" class="card" style="display:none;">
+      <h1>はじめにLINE連携が必要です</h1>
+      <p class="lead">紹介IDを表示するには、TeachのLINE連携（学習サポート登録）が必要です。下のボタンから連携したあと、もう一度この画面を開いてください。</p>
+      <a class="btn btn-primary" href="https://liff.line.me/2006856244-DkorZDXu">LINE連携をする</a>
     </div>
 
     <div id="error" class="card" style="display:none;">
@@ -71,11 +78,11 @@
   <div id="toast" class="toast"></div>
 
   <script>
-    // ===== 設定（実値に差し替え）=====
+    // ===== 設定 =====
     const LIFF_ID = '2006856244-pY3Gcp7P';
     const GAS_URL = 'https://script.google.com/macros/s/AKfycby1-HggBJLt-7c2PCyfyT4CRQ3jSZWsK3PZtBhemfKDcSgd5O9IVE7NFHz9z0uemW5W/exec';
 
-    let userId = null, displayName = null, referralCode = '------';
+    let userId = null, displayName = null, parentId = '------';
 
     async function init(){
       try{
@@ -86,19 +93,25 @@
 
         const res = await fetch(GAS_URL,{
           method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-          body: JSON.stringify({ type:'referral_register', userId, displayName })
+          body: JSON.stringify({ type:'referral_register', userId })
         });
         const r = await res.json();
-        if(!r.success) throw new Error(r.code||'failed');
-        referralCode = r.referralCode;
-        document.getElementById('code').textContent = referralCode;
-        if(r.stats){
-          document.getElementById('st-reg').textContent = r.stats.registered||0;
-          document.getElementById('st-les').textContent = r.stats.lessoned||0;
-          document.getElementById('st-rw').textContent  = r.stats.rewards||0;
-        }
         document.getElementById('loading').style.display='none';
-        document.getElementById('main').style.display='block';
+
+        if(r.success){
+          parentId = r.parentId;
+          document.getElementById('code').textContent = parentId;
+          if(r.stats){
+            document.getElementById('st-reg').textContent = r.stats.registered||0;
+            document.getElementById('st-les').textContent = r.stats.lessoned||0;
+            document.getElementById('st-rw').textContent  = r.stats.rewards||0;
+          }
+          document.getElementById('main').style.display='block';
+        } else if(r.code === 'NOT_LINKED'){
+          document.getElementById('notlinked').style.display='block';
+        } else {
+          throw new Error(r.code||'failed');
+        }
       }catch(e){
         console.error(e);
         document.getElementById('loading').style.display='none';
@@ -112,12 +125,12 @@
     }
 
     document.getElementById('copyBtn').addEventListener('click', async ()=>{
-      try{ await navigator.clipboard.writeText(referralCode); toast('コードをコピーしました'); }
-      catch(_){ toast('コピー: '+referralCode); }
+      try{ await navigator.clipboard.writeText(parentId); toast('紹介IDをコピーしました'); }
+      catch(_){ toast('紹介ID: '+parentId); }
     });
 
     document.getElementById('shareBtn').addEventListener('click', async ()=>{
-      const msg = 'Teachでオンライン家庭教師を使ってるよ！紹介コード【'+referralCode+'】を登録時に入れると、お互い60分授業が1回無料になります✨';
+      const msg = 'Teachでオンライン家庭教師を使ってるよ！登録時に紹介ID【'+parentId+'】を入れると、お互い60分授業が1回無料になります✨';
       try{
         if(liff.isApiAvailable('shareTargetPicker')){
           await liff.shareTargetPicker([{ type:'text', text: msg }]);

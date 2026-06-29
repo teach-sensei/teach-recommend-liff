@@ -48,7 +48,7 @@
       <div class="panel">
         <h2>トップ紹介者</h2>
         <table>
-          <thead><tr><th>コード</th><th>名前</th><th>登録到達</th><th>受講到達</th><th>付与回数</th></tr></thead>
+          <thead><tr><th>紹介者(保護者ID)</th><th>登録到達</th><th>受講到達</th><th>付与回数</th></tr></thead>
           <tbody id="topBody"></tbody>
         </table>
       </div>
@@ -56,7 +56,7 @@
       <div class="panel">
         <h2>最近の紐付け（最新30件）</h2>
         <table>
-          <thead><tr><th>日時</th><th>コード</th><th>被紹介者</th><th>メール</th><th>経路</th><th>状態</th></tr></thead>
+          <thead><tr><th>日時</th><th>紹介者ID</th><th>被紹介者</th><th>メール</th><th>経路</th><th>状態</th></tr></thead>
           <tbody id="recentBody"></tbody>
         </table>
       </div>
@@ -106,11 +106,11 @@
         '<div class="kpi"><div class="n">'+esc(k[1])+'</div><div class="l">'+esc(k[0])+'</div></div>').join('');
 
       document.getElementById('topBody').innerHTML = (r.topReferrers||[]).map(t=>
-        '<tr><td>'+esc(t.code)+'</td><td>'+esc(t.name)+'</td><td>'+esc(t.registered)+'</td><td>'+esc(t.lessoned)+'</td><td>'+esc(t.rewards)+'</td></tr>'
-      ).join('') || '<tr><td colspan="5" class="msg">データなし</td></tr>';
+        '<tr><td>'+esc(t.parentId)+'</td><td>'+esc(t.registered)+'</td><td>'+esc(t.lessoned)+'</td><td>'+esc(t.rewards||0)+'</td></tr>'
+      ).join('') || '<tr><td colspan="4" class="msg">データなし</td></tr>';
 
       document.getElementById('recentBody').innerHTML = (r.recentLinks||[]).map(l=>
-        '<tr><td>'+fmt(l.createdAt)+'</td><td>'+esc(l.code)+'</td><td>'+esc(l.inviteeName)+'</td><td>'+esc(l.email)+'</td><td>'+esc(l.channel)+'</td><td><span class="pill '+esc(l.status)+'">'+esc(l.status)+'</span></td></tr>'
+        '<tr><td>'+fmt(l.createdAt)+'</td><td>'+esc(l.referrerParentId)+'</td><td>'+esc(l.inviteeName)+'</td><td>'+esc(l.email)+'</td><td>'+esc(l.channel)+'</td><td><span class="pill '+esc(l.status)+'">'+esc(l.status)+'</span></td></tr>'
       ).join('') || '<tr><td colspan="6" class="msg">データなし</td></tr>';
     }
 
