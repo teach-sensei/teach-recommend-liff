@@ -44,7 +44,7 @@
 
         <label for="msg" style="display:block;font-size:13px;font-weight:700;margin:18px 0 6px;">紹介メッセージ（自由に編集できます）</label>
         <textarea id="msg" rows="6" style="width:100%;padding:12px;font-size:14px;border:1.5px solid var(--border);border-radius:10px;line-height:1.7;resize:vertical;font-family:inherit;"></textarea>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px;">※ 紹介ID【　】の部分は残してください。お友達がこのIDを入力します。</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">※ 紹介ID【　】と2つのリンクは残してください。お友達がアプリ登録後、このIDをフォームで入力します。</div>
         <button class="btn btn-sub" id="shareBtn" style="margin-top:10px;">LINEで友達に送る</button>
       </div>
 
@@ -92,9 +92,12 @@
     let userId = null, displayName = null, parentId = '------';
 
     function defaultMessage(id){
-      return 'オンライン家庭教師の「Teach」を使っています。子どもに合う先生を自分で選べるのが良くて、もしよければと思いご紹介します。\n'
-        + 'ご登録のときに紹介ID【' + id + '】を入力して、初めての授業を受けると、お互いに次の授業が1回分無料になります。\n'
-        + 'よかったら見てみてください。';
+      return 'オンライン家庭教師の「Teach」を使っています。子どもに合う先生を自分で選べるのが良くて、もしよければご紹介します。\n\n'
+        + '▼アプリのダウンロード・ご登録はこちら\n'
+        + 'https://teach.go.link?adj_t=2164avjy\n\n'
+        + 'ご登録のあと、こちらのフォームで紹介ID【' + id + '】を入力してください。\n'
+        + 'https://teach-sensei.github.io/teach-recommend-liff/referral_join.html\n\n'
+        + '初めての授業を受けると、お互いに次の授業が1回分無料になります。';
     }
 
     async function init(){
