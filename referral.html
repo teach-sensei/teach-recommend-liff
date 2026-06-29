@@ -35,7 +35,7 @@
     <div id="main" style="display:none;">
       <div class="card">
         <h1>お友達を招待する</h1>
-        <p class="lead">あなたの紹介IDをお友達に伝えてください。お友達が登録時にこのIDを入力すると、双方に60分授業1回無料の特典が届きます。</p>
+        <p class="lead">あなたの紹介IDをお友達に伝えてください。お友達がこのIDで登録し、<b>初めての授業を受けると</b>、お互いに「次の授業が1回無料」になります。</p>
         <div class="code-box">
           <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">あなたの紹介ID</div>
           <div class="code" id="code">------</div>
@@ -58,13 +58,16 @@
       </div>
 
       <div class="card">
-        <h1 style="font-size:16px;">招待のしかた</h1>
+        <h1 style="font-size:16px;">特典が受けられるまで</h1>
         <ol class="steps">
-          <li>上の紹介IDをコピー、または「LINEで友達に送る」</li>
-          <li>お友達がTeachアプリに新規登録（生徒登録）</li>
-          <li>お友達が専用フォームでこの紹介IDを入力</li>
-          <li>確認できたら双方に特典が反映されます</li>
+          <li>紹介メッセージをお友達に送る（紹介IDが入っています）</li>
+          <li>お友達がTeachに登録し、紹介IDを入力</li>
+          <li><b>お友達が初めての授業を受けると</b>、お互いに「次の授業1回無料」が確定</li>
+          <li>確定後、LINEでご案内します。次にご予約の授業を1回分、運営が返金します（お手続き不要）</li>
         </ol>
+        <div style="margin-top:12px;background:#FFF7E6;border:1px solid #F0D58A;border-radius:10px;padding:12px;font-size:13px;color:#7a5b00;">
+          ⚠️ <b>登録だけでは無料になりません。</b>お友達が実際に授業を受けることが条件です。
+        </div>
       </div>
     </div>
 
@@ -90,7 +93,7 @@
 
     function defaultMessage(id){
       return 'オンライン家庭教師の「Teach」を使っています。子どもに合う先生を自分で選べるのが良くて、もしよければと思いご紹介します。\n'
-        + 'ご登録のときに紹介ID【' + id + '】を入力すると、お互いに60分の授業が1回分無料になります。\n'
+        + 'ご登録のときに紹介ID【' + id + '】を入力して、初めての授業を受けると、お互いに次の授業が1回分無料になります。\n'
         + 'よかったら見てみてください。';
     }
 
