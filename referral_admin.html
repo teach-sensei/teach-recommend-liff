@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>友達紹介キャンペーン 管理</title>
+  <style>
+    :root{--brand:#00B900;--brand-dark:#009900;--text:#222;--muted:#666;--bg:#f4f6f8;--card:#fff;--border:#e2e2e2;}
+    *{box-sizing:border-box;}
+    body{margin:0;padding:20px;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;background:var(--bg);color:var(--text);}
+    .wrap{max-width:980px;margin:0 auto;}
+    h1{font-size:22px;margin:0 0 4px;}
+    .sub{color:var(--muted);font-size:13px;margin:0 0 20px;}
+    .auth{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+    .auth input{flex:1;min-width:200px;padding:11px;font-size:15px;border:1.5px solid var(--border);border-radius:8px;}
+    .auth button{padding:11px 22px;border:none;border-radius:8px;background:var(--brand);color:#fff;font-weight:700;font-size:15px;cursor:pointer;}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px;}
+    .kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;}
+    .kpi .n{font-size:30px;font-weight:800;color:var(--brand-dark);}
+    .kpi .l{font-size:12px;color:var(--muted);margin-top:2px;}
+    .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;}
+    .panel h2{font-size:15px;margin:0 0 12px;}
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);}
+    th{color:var(--muted);font-weight:600;background:#fafafa;}
+    .pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;}
+    .pill.registered{background:#fff3cd;color:#8a6d00;}
+    .pill.lessoned{background:#d6f5d6;color:#1a7a1a;}
+    .msg{color:var(--muted);padding:16px 0;}
+    .err{color:#d33;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>友達紹介キャンペーン 管理</h1>
+    <p class="sub">紹介状況・特典付与を遠隔で確認できます。トークンを入力して読み込んでください。</p>
+
+    <div class="auth">
+      <input id="token" type="password" placeholder="管理トークン (ADMIN_TOKEN)" />
+      <button id="load">読み込む</button>
+    </div>
+
+    <div id="status" class="msg"></div>
+
+    <div id="content" style="display:none;">
+      <div class="cards" id="kpis"></div>
+
+      <div class="panel">
+        <h2>トップ紹介者</h2>
+        <table>
+          <thead><tr><th>コード</th><th>名前</th><th>登録到達</th><th>受講到達</th><th>付与回数</th></tr></thead>
+          <tbody id="topBody"></tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <h2>最近の紐付け（最新30件）</h2>
+        <table>
+          <thead><tr><th>日時</th><th>コード</th><th>被紹介者</th><th>メール</th><th>経路</th><th>状態</th></tr></thead>
+          <tbody id="recentBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== 設定（実値に差し替え）=====
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycby1-HggBJLt-7c2PCyfyT4CRQ3jSZWsK3PZtBhemfKDcSgd5O9IVE7NFHz9z0uemW5W/exec';
+
+    const qs = new URLSearchParams(location.search);
+    if(qs.get('token')) document.getElementById('token').value = qs.get('token');
+
+    function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+    function fmt(d){ if(!d) return '-'; const x=new Date(d); return isNaN(x)?'-':x.toLocaleString('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}); }
+
+    async function load(){
+      const token = document.getElementById('token').value.trim();
+      const st = document.getElementById('status');
+      if(!token){ st.textContent='トークンを入力してください'; st.className='msg err'; return; }
+      st.textContent='読み込み中…'; st.className='msg';
+      try{
+        const res = await fetch(GAS_URL,{
+          method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+          body: JSON.stringify({ type:'referral_admin', token })
+        });
+        const r = await res.json();
+        if(!r.success){
+          st.textContent = r.code==='UNAUTHORIZED' ? 'トークンが正しくありません' : 'エラー: '+(r.code||'');
+          st.className='msg err'; return;
+        }
+        render(r); st.textContent=''; document.getElementById('content').style.display='block';
+      }catch(e){ console.error(e); st.textContent='通信エラー'; st.className='msg err'; }
+    }
+
+    function render(r){
+      const s = r.summary;
+      const kpi = [
+        ['紹介者数', s.referrers],
+        ['紐付け総数', s.totalLinks],
+        ['登録到達', s.registered],
+        ['受講到達', s.lessoned],
+        ['受講転換率', s.conversionToLesson+'%'],
+        ['特典付与回数', s.rewardCount]
+      ];
+      document.getElementById('kpis').innerHTML = kpi.map(k=>
+        '<div class="kpi"><div class="n">'+esc(k[1])+'</div><div class="l">'+esc(k[0])+'</div></div>').join('');
+
+      document.getElementById('topBody').innerHTML = (r.topReferrers||[]).map(t=>
+        '<tr><td>'+esc(t.code)+'</td><td>'+esc(t.name)+'</td><td>'+esc(t.registered)+'</td><td>'+esc(t.lessoned)+'</td><td>'+esc(t.rewards)+'</td></tr>'
+      ).join('') || '<tr><td colspan="5" class="msg">データなし</td></tr>';
+
+      document.getElementById('recentBody').innerHTML = (r.recentLinks||[]).map(l=>
+        '<tr><td>'+fmt(l.createdAt)+'</td><td>'+esc(l.code)+'</td><td>'+esc(l.inviteeName)+'</td><td>'+esc(l.email)+'</td><td>'+esc(l.channel)+'</td><td><span class="pill '+esc(l.status)+'">'+esc(l.status)+'</span></td></tr>'
+      ).join('') || '<tr><td colspan="6" class="msg">データなし</td></tr>';
+    }
+
+    document.getElementById('load').addEventListener('click', load);
+    document.getElementById('token').addEventListener('keydown', e=>{ if(e.key==='Enter') load(); });
+    if(qs.get('token')) load();
+  </script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teach 紹介コードの入力</title>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    :root{--brand:#00B900;--brand-dark:#009900;--text:#222;--muted:#666;--bg:#f7f7f7;--card:#fff;--border:#e2e2e2;--error:#d33;}
+    *{box-sizing:border-box;}
+    body{margin:0;padding:16px;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;background:var(--bg);color:var(--text);line-height:1.6;}
+    .container{max-width:560px;margin:0 auto;}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;}
+    h1{font-size:20px;margin:0 0 4px;}
+    .lead{color:var(--muted);font-size:14px;margin:0 0 16px;}
+    label{display:block;font-size:14px;font-weight:700;margin:14px 0 6px;}
+    input{width:100%;padding:13px;font-size:16px;border:1.5px solid var(--border);border-radius:10px;}
+    input#code{letter-spacing:3px;text-transform:uppercase;font-family:monospace;font-size:20px;text-align:center;}
+    .hint{font-size:12px;color:var(--muted);margin-top:4px;}
+    .btn{display:block;width:100%;border:none;border-radius:10px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;background:var(--brand);color:#fff;margin-top:18px;}
+    .btn:disabled{opacity:.6;}
+    .err{color:var(--error);font-size:13px;margin-top:10px;min-height:18px;}
+    .loading{text-align:center;color:var(--muted);padding:40px 0;}
+    .ok{text-align:center;padding:20px 0;}
+    .ok .big{font-size:40px;}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="loading" class="loading">読み込み中…</div>
+
+    <div id="form" class="card" style="display:none;">
+      <h1>紹介コードの入力</h1>
+      <p class="lead">お友達からもらった紹介コードと、Teachにご登録のメールアドレスを入力してください。確認できると、双方に60分授業1回無料の特典が反映されます。</p>
+      <label for="code">紹介コード</label>
+      <input id="code" maxlength="8" placeholder="ABC123" autocapitalize="characters" />
+      <label for="email">Teach登録メールアドレス</label>
+      <input id="email" type="email" inputmode="email" placeholder="you@example.com" />
+      <div class="hint">アプリに登録したメールアドレスを入力してください（紹介特典の確認に使います）。</div>
+      <div class="err" id="err"></div>
+      <button class="btn" id="submit">特典を受け取る</button>
+    </div>
+
+    <div id="success" class="card" style="display:none;">
+      <div class="ok">
+        <div class="big">🎉</div>
+        <h1>確認できました！</h1>
+        <p class="lead" id="okMsg">紹介特典の対象として登録しました。最初の授業を受けてみてくださいね。</p>
+      </div>
+    </div>
+
+    <div id="error" class="card" style="display:none;">
+      <p>エラーが発生しました。LINEアプリ内でこのページを開いてください。</p>
+    </div>
+  </div>
+
+  <script>
+    // ===== 設定（実値に差し替え）=====
+    const LIFF_ID = '2006856244-lu8TutUE';
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycby1-HggBJLt-7c2PCyfyT4CRQ3jSZWsK3PZtBhemfKDcSgd5O9IVE7NFHz9z0uemW5W/exec';
+
+    let userId = null, displayName = null;
+
+    async function init(){
+      try{
+        await liff.init({ liffId: LIFF_ID });
+        if(!liff.isLoggedIn()){ liff.login(); return; }
+        const p = await liff.getProfile();
+        userId = p.userId; displayName = p.displayName;
+        document.getElementById('loading').style.display='none';
+        document.getElementById('form').style.display='block';
+      }catch(e){
+        console.error(e);
+        document.getElementById('loading').style.display='none';
+        document.getElementById('error').style.display='block';
+      }
+    }
+
+    function showErr(m){ document.getElementById('err').textContent = m; }
+
+    const MESSAGES = {
+      INVALID_INPUT:'コードとメールアドレスを入力してください',
+      CODE_NOT_FOUND:'紹介コードが見つかりませんでした。コードをご確認ください',
+      SELF_REFERRAL:'ご自身のコードは使用できません',
+      ALREADY_REFERRED:'このアカウントは既に紹介特典に登録済みです',
+      EMAIL_NOT_FOUND:'ご入力のメールアドレスがTeachの登録に見つかりませんでした。アプリ登録のメールをご確認ください'
+    };
+
+    document.getElementById('submit').addEventListener('click', async ()=>{
+      showErr('');
+      const code = document.getElementById('code').value.trim().toUpperCase();
+      const email = document.getElementById('email').value.trim();
+      if(!code || !email){ showErr(MESSAGES.INVALID_INPUT); return; }
+
+      const btn = document.getElementById('submit');
+      btn.disabled = true; btn.textContent = '送信中…';
+      try{
+        const res = await fetch(GAS_URL,{
+          method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+          body: JSON.stringify({
+            type:'referral_join',
+            referralCode: code,
+            inviteeEmail: email,
+            inviteeUserId: userId,
+            inviteeName: displayName,
+            inviteeChannel: 'line'
+          })
+        });
+        const r = await res.json();
+        if(r.success){
+          if(r.referrerName) document.getElementById('okMsg').textContent =
+            r.referrerName+'さんの紹介として確認できました。最初の授業を受けてみてくださいね。';
+          document.getElementById('form').style.display='none';
+          document.getElementById('success').style.display='block';
+        }else{
+          showErr(MESSAGES[r.code] || 'エラーが発生しました。時間をおいて再度お試しください');
+          btn.disabled = false; btn.textContent = '特典を受け取る';
+        }
+      }catch(e){
+        console.error(e);
+        showErr('通信エラーが発生しました。再度お試しください');
+        btn.disabled = false; btn.textContent = '特典を受け取る';
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>

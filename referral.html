@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teach 友達紹介</title>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    :root{--brand:#00B900;--brand-dark:#009900;--text:#222;--muted:#666;--bg:#f7f7f7;--card:#fff;--border:#e2e2e2;--error:#d33;}
+    *{box-sizing:border-box;}
+    body{margin:0;padding:16px;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;background:var(--bg);color:var(--text);line-height:1.6;}
+    .container{max-width:560px;margin:0 auto;}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;}
+    h1{font-size:20px;margin:0 0 4px;}
+    .lead{color:var(--muted);font-size:14px;margin:0 0 16px;}
+    .code-box{text-align:center;background:#f0fff0;border:2px dashed var(--brand);border-radius:12px;padding:18px;margin:8px 0 14px;}
+    .code{font-size:34px;font-weight:800;letter-spacing:4px;color:var(--brand-dark);font-family:monospace;}
+    .btn{display:block;width:100%;border:none;border-radius:10px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;}
+    .btn-primary{background:var(--brand);color:#fff;}
+    .btn-sub{background:#fff;color:var(--brand-dark);border:1.5px solid var(--brand);margin-top:10px;}
+    .stats{display:flex;gap:10px;}
+    .stat{flex:1;text-align:center;background:#fafafa;border:1px solid var(--border);border-radius:10px;padding:12px 6px;}
+    .stat .n{font-size:24px;font-weight:800;color:var(--brand-dark);}
+    .stat .l{font-size:12px;color:var(--muted);}
+    .steps{font-size:13px;color:var(--muted);padding-left:18px;margin:6px 0 0;}
+    .loading{text-align:center;color:var(--muted);padding:40px 0;}
+    .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;opacity:0;transition:.3s;}
+    .toast.show{opacity:1;}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="loading" class="loading">読み込み中…</div>
+
+    <div id="main" style="display:none;">
+      <div class="card">
+        <h1>お友達を招待する</h1>
+        <p class="lead">あなたの紹介コードをお友達に伝えてください。お友達が登録すると、双方に60分授業1回無料の特典が届きます。</p>
+        <div class="code-box">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">あなたの紹介コード</div>
+          <div class="code" id="code">------</div>
+        </div>
+        <button class="btn btn-primary" id="copyBtn">コードをコピー</button>
+        <button class="btn btn-sub" id="shareBtn">LINEで友達に送る</button>
+      </div>
+
+      <div class="card">
+        <h1 style="font-size:16px;">あなたの招待実績</h1>
+        <div class="stats">
+          <div class="stat"><div class="n" id="st-reg">0</div><div class="l">登録した友達</div></div>
+          <div class="stat"><div class="n" id="st-les">0</div><div class="l">授業を受けた友達</div></div>
+          <div class="stat"><div class="n" id="st-rw">0</div><div class="l">獲得した無料回数</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h1 style="font-size:16px;">招待のしかた</h1>
+        <ol class="steps">
+          <li>上のコードをコピー、または「LINEで友達に送る」</li>
+          <li>お友達がTeachアプリに新規登録（生徒登録）</li>
+          <li>お友達が登録時にこのコードを入力</li>
+          <li>確認できたら双方に特典が反映されます</li>
+        </ol>
+      </div>
+    </div>
+
+    <div id="error" class="card" style="display:none;">
+      <p>エラーが発生しました。LINEアプリ内でこのページを開いてください。</p>
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // ===== 設定（実値に差し替え）=====
+    const LIFF_ID = '2006856244-pY3Gcp7P';
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycby1-HggBJLt-7c2PCyfyT4CRQ3jSZWsK3PZtBhemfKDcSgd5O9IVE7NFHz9z0uemW5W/exec';
+
+    let userId = null, displayName = null, referralCode = '------';
+
+    async function init(){
+      try{
+        await liff.init({ liffId: LIFF_ID });
+        if(!liff.isLoggedIn()){ liff.login(); return; }
+        const p = await liff.getProfile();
+        userId = p.userId; displayName = p.displayName;
+
+        const res = await fetch(GAS_URL,{
+          method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+          body: JSON.stringify({ type:'referral_register', userId, displayName })
+        });
+        const r = await res.json();
+        if(!r.success) throw new Error(r.code||'failed');
+        referralCode = r.referralCode;
+        document.getElementById('code').textContent = referralCode;
+        if(r.stats){
+          document.getElementById('st-reg').textContent = r.stats.registered||0;
+          document.getElementById('st-les').textContent = r.stats.lessoned||0;
+          document.getElementById('st-rw').textContent  = r.stats.rewards||0;
+        }
+        document.getElementById('loading').style.display='none';
+        document.getElementById('main').style.display='block';
+      }catch(e){
+        console.error(e);
+        document.getElementById('loading').style.display='none';
+        document.getElementById('error').style.display='block';
+      }
+    }
+
+    function toast(msg){
+      const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+      setTimeout(()=>t.classList.remove('show'),1600);
+    }
+
+    document.getElementById('copyBtn').addEventListener('click', async ()=>{
+      try{ await navigator.clipboard.writeText(referralCode); toast('コードをコピーしました'); }
+      catch(_){ toast('コピー: '+referralCode); }
+    });
+
+    document.getElementById('shareBtn').addEventListener('click', async ()=>{
+      const msg = 'Teachでオンライン家庭教師を使ってるよ！紹介コード【'+referralCode+'】を登録時に入れると、お互い60分授業が1回無料になります✨';
+      try{
+        if(liff.isApiAvailable('shareTargetPicker')){
+          await liff.shareTargetPicker([{ type:'text', text: msg }]);
+        }else{
+          await navigator.clipboard.writeText(msg); toast('メッセージをコピーしました');
+        }
+      }catch(e){ console.error(e); toast('共有をキャンセルしました'); }
+    });
+
+    init();
+  </script>
+</body>
+</html>
