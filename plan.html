@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teach 学習スケジュール</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body {
+  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+  margin: 0; background: #f5f4ef; color: #1a1a1a;
+}
+.container { max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: 88px; }
+.header { background: #06C755; padding: 18px 16px; }
+.header .eyebrow { font-size: 11px; color: #E6F6EC; margin: 0 0 4px; letter-spacing: .05em; }
+.header h1 { font-size: 17px; color: #fff; margin: 0; font-weight: 700; }
+.body { padding: 16px; }
+.loading, .error {
+  padding: 40px 20px; text-align: center; color: #6b6b63; font-size: 14px; line-height: 1.7;
+}
+.error { color: #b3261e; }
+
+.card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+.card h2 { font-size: 14px; margin: 0 0 4px; font-weight: 700; }
+.card .note { font-size: 12px; color: #6b6b63; margin: 0 0 12px; line-height: 1.6; }
+
+.row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.row label { font-size: 12px; color: #4a4a44; flex: 0 0 62px; }
+input[type=date], input[type=text], select {
+  font-family: inherit; font-size: 14px; padding: 8px 10px;
+  border: 1px solid #dcdcd4; border-radius: 8px; background: #fff; color: #1a1a1a;
+  flex: 1; min-width: 0;
+}
+input:focus, select:focus { outline: 2px solid #06C755; outline-offset: -1px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font-size: 13px; padding: 7px 0; border-radius: 999px; border: 1px solid #dcdcd4;
+  background: #fff; color: #4a4a44; cursor: pointer; user-select: none;
+  flex: 1 1 calc(14.28% - 6px); text-align: center; min-width: 38px;
+}
+.chip.on { background: #FFF1C2; border-color: #E8C33A; color: #7a5600; font-weight: 700; }
+
+.btn {
+  display: block; width: 100%; padding: 12px; border-radius: 10px; border: none;
+  font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; text-align: center;
+}
+.btn-primary { background: #06C755; color: #fff; }
+.btn-sub { background: #fff; color: #06C755; border: 1px solid #06C755; }
+.btn-ghost { background: #f0efe8; color: #4a4a44; font-weight: 400; font-size: 13px; padding: 10px; }
+.btn:active { opacity: .75; }
+
+.weekhead {
+  font-size: 11px; color: #8a8a82; margin: 16px 0 6px; font-weight: 700; letter-spacing: .04em;
+}
+.plan {
+  background: #fff; border-radius: 10px; padding: 12px; margin-bottom: 8px;
+  border-left: 3px solid #06C755;
+}
+.plan.edit { border-left-color: #E8C33A; }
+.plan-main { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.plan-date { font-size: 15px; font-weight: 700; flex: 0 0 auto; }
+.plan-date .dow { font-size: 12px; color: #6b6b63; margin-left: 2px; font-weight: 400; }
+.plan-time { font-size: 14px; color: #06C755; font-weight: 700; }
+.plan-body { font-size: 12px; color: #6b6b63; margin-top: 4px; line-height: 1.5; }
+.plan-caret { margin-left: auto; color: #b5b5ad; font-size: 12px; }
+.plan-editor { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e3e2da; display: none; }
+.plan.edit .plan-editor { display: block; }
+
+.empty { text-align: center; color: #8a8a82; font-size: 13px; padding: 24px 8px; line-height: 1.7; }
+
+.footer-bar {
+  position: fixed; bottom: 0; left: 0; right: 0; background: #fff;
+  border-top: 1px solid #e3e2da; padding: 12px 16px;
+  max-width: 480px; margin: 0 auto;
+}
+.saved-msg {
+  font-size: 12px; color: #06C755; text-align: center; margin-top: 8px; display: none;
+}
+.hint { font-size: 11px; color: #8a8a82; line-height: 1.6; margin-top: 8px; }
+.count { font-size: 12px; color: #6b6b63; margin: 0 0 8px; }
+
+.picker-label { font-size: 11px; color: #8a8a82; margin: 12px 0 6px; }
+.picker-cats {
+  display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.picker-cats::-webkit-scrollbar { display: none; }
+.cat {
+  flex: 0 0 auto; font-size: 12px; padding: 6px 11px; border-radius: 999px;
+  border: 1px solid #dcdcd4; background: #fff; color: #6b6b63;
+  cursor: pointer; white-space: nowrap; user-select: none;
+}
+.cat.on { background: #06C755; border-color: #06C755; color: #fff; font-weight: 700; }
+.picker-items { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.item {
+  font-size: 12px; padding: 7px 10px; border-radius: 8px;
+  border: 1px solid #e3e2da; background: #faf9f4; color: #4a4a44;
+  cursor: pointer; line-height: 1.3; user-select: none;
+}
+.item.on { background: #FFF1C2; border-color: #E8C33A; color: #7a5600; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <p class="eyebrow">Teach</p>
+    <h1>学習スケジュール</h1>
+  </div>
+
+  <div id="loading" class="loading">読み込んでいます…</div>
+  <div id="error" class="error" style="display:none"></div>
+
+  <div id="main" class="body" style="display:none">
+
+    <div class="card" id="studentCard" style="display:none">
+      <h2>お子さん</h2>
+      <p class="note">スケジュールを作るお子さんを選んでください。</p>
+      <select id="studentSel"></select>
+    </div>
+
+    <div class="card">
+      <h2>いつまでの予定を立てますか</h2>
+      <p class="note">夏休みの期間に合わせてください。あとから変えられます。</p>
+      <div class="row"><label>開始</label><input type="date" id="startDate"></div>
+      <div class="row"><label>終了</label><input type="date" id="endDate"></div>
+      <div class="row"><label>週に</label>
+        <select id="perWeek">
+          <option value="1">1回</option>
+          <option value="2">2回</option>
+          <option value="3">3回</option>
+          <option value="4">4回以上</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>塾・部活などで埋まっている曜日</h2>
+      <p class="note">タップして選んでください。この曜日を避けて予定を組みます。塾がある場合は、その翌日に置くようにします。</p>
+      <div class="chips" id="busyDays"></div>
+    </div>
+
+    <div class="card">
+      <h2>受けやすい時間帯</h2>
+      <p class="note">だいたいで大丈夫です。</p>
+      <div class="row">
+        <select id="prefTime">
+          <option value="10:00">午前（10:00ごろ）</option>
+          <option value="14:00">昼すぎ（14:00ごろ）</option>
+          <option value="17:00">夕方（17:00ごろ）</option>
+          <option value="19:00" selected>夜（19:00ごろ）</option>
+          <option value="20:00">遅め（20:00ごろ）</option>
+        </select>
+      </div>
+      <button class="btn btn-sub" id="regenBtn" style="margin-top:4px">この条件でスケジュールを作り直す</button>
+      <p class="hint">作り直すと、いま並んでいる予定は置きかえられます。</p>
+    </div>
+
+    <p class="count" id="countLabel"></p>
+    <div id="planList"></div>
+    <button class="btn btn-ghost" id="addBtn">＋ 予定を追加する</button>
+  </div>
+
+  <div class="footer-bar" id="footerBar" style="display:none">
+    <button class="btn btn-primary" id="saveBtn">この予定で登録する</button>
+    <p class="saved-msg" id="savedMsg">登録しました。前日の朝にお知らせします。</p>
+  </div>
+</div>
+
+<script>
+// ========================================
+// ★要設定：スケジュール専用LIFFのID
+// 既存のLIFF ID（DkorZDXu＝紐付け / bsgRGwNw＝フィードバック）は流用不可。新規発行してここを差し替える。
+// gas_all.js の PLAN_LIFF_URL と必ず同じものにすること。
+// ========================================
+const LIFF_ID = '2006856244-AJk0YJYA';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycby1-HggBJLt-7c2PCyfyT4CRQ3jSZWsK3PZtBhemfKDcSgd5O9IVE7NFHz9z0uemW5W/exec';
+
+const DOW = ['日', '月', '火', '水', '木', '金', '土'];
+const TIMES = ['09:00','10:00','11:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'];
+
+let USER_ID = null;
+let STUDENTS = [];      // [{studentId, studentName, nayami, contents:[...], recentDow, recentTime}]
+let CURRENT = null;     // 選択中の生徒
+let PLANS = [];         // [{id, date:'YYYY-MM-DD', time:'HH:MM', content:'...'}]
+let BUSY = [];          // 埋まっている曜日 [0-6]
+let LIBRARY = [];       // やることの候補 [{label, items:[...]}]
+
+// ========================================
+// 初期化
+// ========================================
+async function init() {
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+
+    const profile = await liff.getProfile();
+    USER_ID = profile.userId;
+
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ type: 'plan_get', userId: USER_ID })
+    });
+    const data = await res.json();
+
+    if (!data || !data.success) {
+      const map = {
+        NOT_LINKED: 'LINEと生徒情報の紐付けが見つかりませんでした。先に登録画面から紐付けをお願いします。',
+        NOT_FOUND: '対象の情報が見つかりませんでした。',
+        INVALID_INPUT: '情報が不足しています。LINEメッセージから開き直してください。'
+      };
+      showError((data && map[data.code]) || 'データの取得に失敗しました。時間をおいて再度お試しください。');
+      return;
+    }
+
+    setup(data);
+  } catch (err) {
+    console.error('初期化エラー', err);
+    showError('エラーが発生しました。LINEアプリ内でこのページを開いてください。');
+  }
+}
+
+function showError(msg) {
+  document.getElementById('loading').style.display = 'none';
+  const el = document.getElementById('error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// ========================================
+// セットアップ
+// ========================================
+function setup(d) {
+  STUDENTS = d.students || [];
+  LIBRARY = d.library || [];
+  if (!STUDENTS.length) { showError('お子さんの情報が見つかりませんでした。'); return; }
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('main').style.display = 'block';
+  document.getElementById('footerBar').style.display = 'block';
+
+  // 生徒セレクタ（2人以上のときだけ出す）
+  const sel = document.getElementById('studentSel');
+  STUDENTS.forEach(function (s, i) {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = s.studentName || ('お子さん' + (i + 1));
+    sel.appendChild(o);
+  });
+  if (STUDENTS.length > 1) document.getElementById('studentCard').style.display = 'block';
+  sel.addEventListener('change', function () { selectStudent(Number(sel.value)); });
+
+  // 期間の初期値
+  const today = new Date();
+  const start = new Date(today.getTime() + 86400000); // 明日から
+  const end = d.defaultEnd ? parseDate(d.defaultEnd) : new Date(today.getFullYear(), 7, 31);
+  document.getElementById('startDate').value = fmtDate(start);
+  document.getElementById('endDate').value = fmtDate(end < start ? start : end);
+
+  // 曜日チップ
+  const wrap = document.getElementById('busyDays');
+  DOW.forEach(function (label, i) {
+    const c = document.createElement('div');
+    c.className = 'chip'; c.textContent = label; c.dataset.dow = i;
+    c.addEventListener('click', function () {
+      c.classList.toggle('on');
+      BUSY = Array.prototype.slice.call(document.querySelectorAll('.chip.on')).map(function (x) { return Number(x.dataset.dow); });
+    });
+    wrap.appendChild(c);
+  });
+
+  document.getElementById('regenBtn').addEventListener('click', function () {
+    if (PLANS.length && !confirm('いま並んでいる予定を置きかえます。よろしいですか。')) return;
+    PLANS = generate();
+    render();
+  });
+  document.getElementById('addBtn').addEventListener('click', addPlan);
+  document.getElementById('saveBtn').addEventListener('click', save);
+
+  selectStudent(0);
+}
+
+function selectStudent(i) {
+  CURRENT = STUDENTS[i];
+  // 既存の登録済み計画があればそれを、なければおすすめを生成
+  if (CURRENT.existingPlans && CURRENT.existingPlans.length) {
+    PLANS = CURRENT.existingPlans.map(function (p, n) {
+      return { id: 'e' + n, date: p.date, time: p.time, content: p.content };
+    });
+  } else {
+    if (CURRENT.recentDow != null) {
+      // 直近よく受けている曜日以外を「埋まっている」とはみなさない。初期選択はしない
+    }
+    if (CURRENT.recentTime) {
+      const opt = nearestTime(CURRENT.recentTime);
+      const sel = document.getElementById('prefTime');
+      for (let k = 0; k < sel.options.length; k++) {
+        if (sel.options[k].value === opt) { sel.selectedIndex = k; break; }
+      }
+    }
+    if (CURRENT.perWeek) document.getElementById('perWeek').value = String(Math.min(4, Math.max(1, CURRENT.perWeek)));
+    PLANS = generate();
+  }
+  render();
+}
+
+// ========================================
+// おすすめ生成
+// ========================================
+function generate() {
+  const start = parseDate(document.getElementById('startDate').value);
+  const end = parseDate(document.getElementById('endDate').value);
+  const perWeek = Number(document.getElementById('perWeek').value);
+  const time = document.getElementById('prefTime').value;
+  if (!start || !end || end < start) return [];
+
+  const contents = (CURRENT && CURRENT.contents && CURRENT.contents.length)
+    ? CURRENT.contents : ['前回の続き', '苦手なところの復習', 'わからなかった問題の解き直し'];
+
+  // 候補日＝期間内で「埋まっている曜日」でない日
+  // 塾がある曜日の翌日を優先（塾で出た宿題・わからなかった所を持ち込めるため）
+  const dayAfterBusy = BUSY.map(function (d) { return (d + 1) % 7; });
+
+  const cand = [];
+  for (let t = new Date(start); t <= end; t = new Date(t.getTime() + 86400000)) {
+    const dow = t.getDay();
+    if (BUSY.indexOf(dow) >= 0) continue;
+    cand.push({ date: new Date(t), dow: dow, pri: dayAfterBusy.indexOf(dow) >= 0 ? 0 : 1 });
+  }
+  if (!cand.length) return [];
+
+  // 週数から総本数を出す
+  const weeks = Math.max(1, Math.ceil((end - start) / (7 * 86400000)));
+  const total = Math.min(cand.length, weeks * perWeek);
+
+  // なるべく等間隔に、ただし優先曜日を先に拾う
+  const step = cand.length / total;
+  const picked = [];
+  const used = {};
+  for (let i = 0; i < total; i++) {
+    let idx = Math.floor(i * step);
+    // 近傍±2日で優先曜日（塾の翌日）があればそちらへ寄せる
+    let best = idx;
+    for (let j = Math.max(0, idx - 2); j <= Math.min(cand.length - 1, idx + 2); j++) {
+      if (!used[j] && cand[j].pri < cand[best].pri) best = j;
+    }
+    while (used[best] && best < cand.length - 1) best++;
+    if (used[best]) continue;
+    used[best] = true;
+    picked.push(cand[best]);
+  }
+  picked.sort(function (a, b) { return a.date - b.date; });
+
+  return picked.map(function (c, i) {
+    return { id: 'g' + i, date: fmtDate(c.date), time: time, content: contents[i % contents.length] };
+  });
+}
+
+function nearestTime(hhmm) {
+  let best = TIMES[0], diff = 1e9;
+  const target = toMin(hhmm);
+  ['10:00','14:00','17:00','19:00','20:00'].forEach(function (t) {
+    const d = Math.abs(toMin(t) - target);
+    if (d < diff) { diff = d; best = t; }
+  });
+  return best;
+}
+function toMin(t) { const p = String(t).split(':'); return Number(p[0]) * 60 + Number(p[1] || 0); }
+
+// ========================================
+// 描画
+// ========================================
+function render() {
+  const list = document.getElementById('planList');
+  list.innerHTML = '';
+
+  document.getElementById('countLabel').textContent =
+    PLANS.length ? ('予定 ' + PLANS.length + '件') : '';
+
+  if (!PLANS.length) {
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = '予定がまだありません。条件を決めて「スケジュールを作り直す」を押すか、下から1件ずつ追加してください。';
+    list.appendChild(e);
+    return;
+  }
+
+  PLANS.sort(function (a, b) { return (a.date + a.time) < (b.date + b.time) ? -1 : 1; });
+
+  let lastWeek = null;
+  PLANS.forEach(function (p, i) {
+    const d = parseDate(p.date);
+    const wk = weekLabel(d);
+    if (wk !== lastWeek) {
+      const h = document.createElement('div');
+      h.className = 'weekhead'; h.textContent = wk;
+      list.appendChild(h);
+      lastWeek = wk;
+    }
+    list.appendChild(planCard(p, i));
+  });
+}
+
+function planCard(p, i) {
+  const d = parseDate(p.date);
+  const el = document.createElement('div');
+  el.className = 'plan';
+
+  const main = document.createElement('div');
+  main.className = 'plan-main';
+  main.innerHTML =
+    '<span class="plan-date">' + (d.getMonth() + 1) + '/' + d.getDate() +
+    '<span class="dow">(' + DOW[d.getDay()] + ')</span></span>' +
+    '<span class="plan-time">' + p.time + '</span>' +
+    '<span class="plan-caret">編集 ▾</span>';
+  main.addEventListener('click', function () { el.classList.toggle('edit'); });
+  el.appendChild(main);
+
+  const body = document.createElement('div');
+  body.className = 'plan-body';
+  body.textContent = p.content;
+  el.appendChild(body);
+
+  const ed = document.createElement('div');
+  ed.className = 'plan-editor';
+
+  const r1 = document.createElement('div'); r1.className = 'row';
+  r1.innerHTML = '<label>日付</label>';
+  const din = document.createElement('input');
+  din.type = 'date'; din.value = p.date;
+  din.addEventListener('change', function () { p.date = din.value; render(); });
+  r1.appendChild(din); ed.appendChild(r1);
+
+  const r2 = document.createElement('div'); r2.className = 'row';
+  r2.innerHTML = '<label>時間</label>';
+  const tsel = document.createElement('select');
+  TIMES.forEach(function (t) {
+    const o = document.createElement('option');
+    o.value = t; o.textContent = t; if (t === p.time) o.selected = true;
+    tsel.appendChild(o);
+  });
+  tsel.addEventListener('change', function () { p.time = tsel.value; render(); });
+  r2.appendChild(tsel); ed.appendChild(r2);
+
+  const r3 = document.createElement('div'); r3.className = 'row';
+  r3.innerHTML = '<label>やること</label>';
+  const cin = document.createElement('input');
+  cin.type = 'text'; cin.value = p.content; cin.maxLength = 40;
+  cin.addEventListener('input', function () { p.content = cin.value; body.textContent = cin.value; });
+  r3.appendChild(cin); ed.appendChild(r3);
+
+  // やることの候補ピッカー（カテゴリ → 候補）
+  if (LIBRARY.length) {
+    const lab = document.createElement('div');
+    lab.className = 'picker-label';
+    lab.textContent = '候補から選ぶ（自由に書き換えても大丈夫です）';
+    ed.appendChild(lab);
+
+    const cats = document.createElement('div');
+    cats.className = 'picker-cats';
+    const items = document.createElement('div');
+    items.className = 'picker-items';
+
+    function paint(catIdx) {
+      Array.prototype.forEach.call(cats.children, function (c, n) {
+        c.classList.toggle('on', n === catIdx);
+      });
+      items.innerHTML = '';
+      (LIBRARY[catIdx].items || []).forEach(function (txt) {
+        const it = document.createElement('div');
+        it.className = 'item' + (txt === p.content ? ' on' : '');
+        it.textContent = txt;
+        it.addEventListener('click', function () {
+          p.content = txt;
+          cin.value = txt;
+          body.textContent = txt;
+          Array.prototype.forEach.call(items.children, function (x) {
+            x.classList.toggle('on', x.textContent === txt);
+          });
+        });
+        items.appendChild(it);
+      });
+    }
+
+    LIBRARY.forEach(function (cat, n) {
+      const c = document.createElement('div');
+      c.className = 'cat';
+      c.textContent = cat.label;
+      c.addEventListener('click', function () { paint(n); });
+      cats.appendChild(c);
+    });
+
+    // 現在の内容が含まれるカテゴリを開いておく
+    let openIdx = 0;
+    LIBRARY.forEach(function (cat, n) {
+      if ((cat.items || []).indexOf(p.content) >= 0) openIdx = n;
+    });
+
+    ed.appendChild(cats);
+    ed.appendChild(items);
+    paint(openIdx);
+  }
+
+  const del = document.createElement('button');
+  del.className = 'btn btn-ghost'; del.textContent = 'この予定を削除する';
+  del.addEventListener('click', function () {
+    PLANS = PLANS.filter(function (x) { return x.id !== p.id; });
+    render();
+  });
+  ed.appendChild(del);
+
+  el.appendChild(ed);
+  return el;
+}
+
+function addPlan() {
+  const last = PLANS.length ? parseDate(PLANS[PLANS.length - 1].date) : new Date();
+  const next = new Date(last.getTime() + 3 * 86400000);
+  PLANS.push({
+    id: 'n' + Date.now(),
+    date: fmtDate(next),
+    time: document.getElementById('prefTime').value,
+    content: '前回の続き'
+  });
+  render();
+}
+
+// ========================================
+// 保存
+// ========================================
+async function save() {
+  const btn = document.getElementById('saveBtn');
+  if (!PLANS.length) { alert('予定が1件もありません。'); return; }
+  btn.disabled = true; btn.textContent = '登録しています…';
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        type: 'plan_save',
+        userId: USER_ID,
+        studentId: CURRENT.studentId,
+        busyDays: BUSY,
+        plans: PLANS.map(function (p) { return { date: p.date, time: p.time, content: p.content }; })
+      })
+    });
+    const data = await res.json();
+    if (!data || !data.success) throw new Error((data && data.code) || 'SAVE_FAILED');
+
+    document.getElementById('savedMsg').style.display = 'block';
+    btn.textContent = '登録しました';
+    setTimeout(function () { if (liff.isInClient()) liff.closeWindow(); }, 1600);
+  } catch (err) {
+    console.error(err);
+    btn.disabled = false; btn.textContent = 'この予定で登録する';
+    alert('登録に失敗しました。時間をおいて再度お試しください。');
+  }
+}
+
+// ========================================
+// ユーティリティ
+// ========================================
+function fmtDate(d) {
+  const m = ('0' + (d.getMonth() + 1)).slice(-2);
+  const dd = ('0' + d.getDate()).slice(-2);
+  return d.getFullYear() + '-' + m + '-' + dd;
+}
+function parseDate(s) {
+  if (!s) return null;
+  const p = String(s).split('-');
+  return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+}
+function weekLabel(d) {
+  const mon = new Date(d);
+  mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return (mon.getMonth() + 1) + '/' + mon.getDate() + 'の週';
+}
+
+init();
+</script>
+</body>
+</html>
