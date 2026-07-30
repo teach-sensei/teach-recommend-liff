@@ -31,6 +31,7 @@ body {
 .lead p { margin: 0; font-size: 14px; line-height: 1.7; color: #1a1a1a; }
 .lead .sub { font-size: 12px; color: #5c5c55; margin-top: 8px; line-height: 1.6; }
 .lead b { color: #05a748; }
+.jump { color: #05a748; font-weight: 700; text-decoration: underline; }
 
 /* ---------- お子さん切替 ---------- */
 .kids { display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto; }
@@ -160,10 +161,10 @@ input:focus, select:focus { outline: 2px solid #06C755; outline-offset: -1px; }
   background: #fff; color: #3f3f39;
   flex: 1 1 calc(14.28% - 6px); text-align: center; min-width: 40px;
 }
-.chip.on {
-  background: #e8e7df; border-color: #b5b4a9; color: #7a796f;
-  text-decoration: line-through; font-weight: 700;
-}
+/* 選択されている＝この曜日に予定を入れてよい（ポジティブ選択）。
+   以前は「あいていない曜日」を選ばせる逆方式だったが、
+   選択色に「不可」の意味を載せることになり読み違えやすかったため反転した。 */
+.chip.on { background: #06C755; border-color: #06C755; color: #fff; font-weight: 700; }
 
 .dirty-note {
   display: none; background: #FFF8E5; color: #6b4b00; font-size: 12px;
@@ -219,6 +220,7 @@ input:focus, select:focus { outline: 2px solid #06C755; outline-offset: -1px; }
 
     <div class="lead">
       <p id="leadText"></p>
+      <p class="sub" id="leadBulk">まとめて変えたいときは、いちばん下の<span class="jump" id="jumpBulk">「条件を変えてまとめて作り直す」</span>から、期間・回数・曜日を指定して組み直せます。</p>
       <p class="sub">決めておくと、<b>前日の朝にLINEでお知らせ</b>が届きます。「予約するのを忘れていた」を防ぐための画面です。</p>
     </div>
 
@@ -256,9 +258,9 @@ input:focus, select:focus { outline: 2px solid #06C755; outline-offset: -1px; }
           </select>
         </div>
 
-        <h3>塾・習いごとで あいていない曜日</h3>
-        <p class="note">選んだ曜日は避けます。塾がある場合は、その翌日に置くようにします（塾で分からなかったところを持っていけるので）。</p>
-        <div class="chips" id="busyDays"></div>
+        <h3>勉強にあてられる曜日</h3>
+        <p class="note">予定を入れてよい曜日を選んでください。塾や習いごとで時間が取れない曜日は、外していただければ避けて組みます。</p>
+        <div class="chips" id="availDays"></div>
 
         <h3>受けやすい時間帯</h3>
         <div class="row">
@@ -300,7 +302,7 @@ let STUDENTS = [];
 let CURRENT = null;
 let CURRENT_IDX = 0;
 let PLANS = [];
-let BUSY = [];
+let AVAIL = [0, 1, 2, 3, 4, 5, 6];   // 勉強にあてられる曜日。初期は全曜日
 let LIBRARY = [];
 let FIRST_RENDER = true;     // 初回は1件目を開いて「編集できる」ことを見せる
 let LAST_DELETED = null;     // 元に戻す用
@@ -385,17 +387,24 @@ function setup(d) {
     });
   }
 
-  // あいていない曜日チップ
-  const bd = document.getElementById('busyDays');
+  // 勉強にあてられる曜日チップ（初期は全曜日オン）
+  const ad = document.getElementById('availDays');
   DOW.forEach(function (label, i) {
     const c = document.createElement('div');
-    c.className = 'chip'; c.textContent = label; c.dataset.dow = i;
+    c.className = 'chip on'; c.textContent = label; c.dataset.dow = i;
     c.addEventListener('click', function () {
       c.classList.toggle('on');
-      BUSY = Array.prototype.slice.call(bd.querySelectorAll('.chip.on')).map(function (x) { return Number(x.dataset.dow); });
+      const picked = Array.prototype.slice.call(ad.querySelectorAll('.chip.on')).map(function (x) { return Number(x.dataset.dow); });
+      if (!picked.length) {
+        // 全部外すと予定が1件も作れなくなるので、最後の1つは外させない
+        c.classList.add('on');
+        alert('少なくとも1つの曜日を選んでください。');
+        return;
+      }
+      AVAIL = picked;
       markDirty();
     });
-    bd.appendChild(c);
+    ad.appendChild(c);
   });
 
   ['startDate', 'endDate', 'perWeek', 'prefTime'].forEach(function (id) {
@@ -414,6 +423,13 @@ function setup(d) {
   document.getElementById('addBtn').addEventListener('click', addPlan);
   document.getElementById('saveBtn').addEventListener('click', save);
   document.getElementById('undoBtn').addEventListener('click', undoDelete);
+
+  // リード文から条件セクションへ飛べるようにする（下にあることに気づかない人向け）
+  document.getElementById('jumpBulk').addEventListener('click', function () {
+    const s = document.getElementById('settings');
+    s.open = true;
+    s.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 
   selectStudent(0);
 }
@@ -471,13 +487,16 @@ function generate() {
   const contents = (CURRENT && CURRENT.contents && CURRENT.contents.length)
     ? CURRENT.contents : ['前回の続き', '苦手なところの復習', 'わからなかった問題の解き直し'];
 
-  const dayAfterBusy = BUSY.map(function (d) { return (d + 1) % 7; });
+  // 選ばれなかった曜日（塾などで時間が取れない日）の翌日を優先して置く。
+  // 前日に習ったことを、間をあけずに確認できるため。
+  const off = [0, 1, 2, 3, 4, 5, 6].filter(function (d) { return AVAIL.indexOf(d) < 0; });
+  const dayAfterOff = off.map(function (d) { return (d + 1) % 7; });
 
   const cand = [];
   for (let t = new Date(start); t <= end; t = new Date(t.getTime() + 86400000)) {
     const dow = t.getDay();
-    if (BUSY.indexOf(dow) >= 0) continue;
-    cand.push({ date: new Date(t), dow: dow, pri: dayAfterBusy.indexOf(dow) >= 0 ? 0 : 1 });
+    if (AVAIL.indexOf(dow) < 0) continue;
+    cand.push({ date: new Date(t), dow: dow, pri: dayAfterOff.indexOf(dow) >= 0 ? 0 : 1 });
   }
   if (!cand.length) return [];
 
@@ -771,7 +790,8 @@ async function save() {
         type: 'plan_save',
         userId: USER_ID,
         studentId: CURRENT.studentId,
-        busyDays: BUSY,
+        // シート側は従来どおり「埋まっている曜日」で持つので、選択の裏返しを渡す
+        busyDays: [0, 1, 2, 3, 4, 5, 6].filter(function (d) { return AVAIL.indexOf(d) < 0; }),
         plans: PLANS.map(function (p) { return { date: p.date, time: p.time, content: p.content }; })
       })
     });
