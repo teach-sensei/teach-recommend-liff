@@ -1,0 +1,755 @@
+/**
+ * 学習スケジュール（カレンダーLIFF）GAS
+ * 2026-07-28 作成
+ *
+ * 構成:
+ *   plan_get   … plan.html の初期表示データ（生徒一覧／お悩み／おすすめ用テンプレ／既存の予定）
+ *   plan_save  … 予定の保存（所有検証つき）
+ *   sendPlanReminders … 毎日10:00、翌日の予定をLINEで通知
+ *
+ * なぜ夜でなく朝に送るか:
+ *   夜に送っても、翌日の枠を持っている先生は限られる。朝に出せば日中のうちに
+ *   予約手続きができ、先生側にも枠を出す時間が残る。
+ *   翌朝レポート（8:58）と重ならないよう10時台にしてある。
+ *
+ * 導入:
+ *   1) このファイルをGASに新規ファイル「学習スケジュール.gs」として追加
+ *   2) コード.gs（または無題.gs）の doPost に2行だけ追記（下の【doPostへの追記】参照）
+ *   3) ensurePlanSheets_() を1回手動実行してシートを作る
+ *   4) setupPlanReminderTrigger() を1回手動実行して毎日10:00のトリガーを作る
+ *   5) Web App を「新バージョン」で再デプロイ（★毎回必須。古いdoPostのままだと動きません）
+ *
+ * 【doPostへの追記】既存の doPost の分岐に以下を足すだけ:
+ *     } else if (data.type === 'plan_get') {
+ *       result = planGet(data);
+ *     } else if (data.type === 'plan_save') {
+ *       result = planSave(data);
+ *
+ * 既存関数と名前が衝突しないよう、全てユニーク名にしてあります。
+ */
+
+// ★要設定：plan.html を公開したLIFFのURL（plan.html の LIFF_ID と同じIDにすること）
+var PLAN_LIFF_URL = 'https://liff.line.me/2006856244-AJk0YJYA';
+var PLAN_RESERVATION_URL = 'https://teach.go.link?adj_t=20qreqfp';
+
+var PLAN_SHEET = '学習計画';
+var PLAN_CONFIG_SHEET = '計画設定';
+var PLAN_HEADERS = ['計画ID', '保護者ID', '生徒ID', '生徒名', '予定日', '予定時刻', 'やること', '状態', '登録日時', 'リマインド送信日時'];
+var PLAN_CONFIG_HEADERS = ['保護者ID', '生徒ID', '埋まっている曜日', '更新日時'];
+
+// ========================================
+// シート準備（1回手動実行）
+// ========================================
+function ensurePlanSheets_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  [[PLAN_SHEET, PLAN_HEADERS], [PLAN_CONFIG_SHEET, PLAN_CONFIG_HEADERS]].forEach(function (pair) {
+    var sh = ss.getSheetByName(pair[0]);
+    if (!sh) {
+      sh = ss.insertSheet(pair[0]);
+      sh.getRange(1, 1, 1, pair[1].length).setValues([pair[1]]).setFontWeight('bold');
+      sh.setFrozenRows(1);
+      console.log('作成: ' + pair[0]);
+    } else {
+      console.log('既存: ' + pair[0]);
+    }
+  });
+}
+function ensurePlanSheets() { ensurePlanSheets_(); }
+
+// ========================================
+// userId → 保護者ID（所有検証の共通処理）
+// ========================================
+function planResolveParent_(userId) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('紐付けマスタ');
+  if (!sh) return null;
+  var d = sh.getDataRange().getValues();
+  var h = d[0];
+  var uc = h.indexOf('LINE_userId');
+  var pc = h.indexOf('保護者ID');
+  var nc = h.indexOf('保護者の氏名');
+  var oc = h.indexOf('配信オプトイン');
+  for (var i = 1; i < d.length; i++) {
+    if (d[i][uc] === userId) {
+      return { parentId: d[i][pc], parentName: nc >= 0 ? d[i][nc] : '', optIn: oc >= 0 ? d[i][oc] : true };
+    }
+  }
+  return null;
+}
+
+// ========================================
+// お悩み別「やること」テンプレ
+// ========================================
+var PLAN_CONTENTS_ = {
+  '受験対策': ['過去問で間違えたところ', '苦手な分野をひとつ集中して', '前回の続き', '解き方があいまいな単元の確認', '志望校の出題傾向にあわせて', '時間を計って解いてみる'],
+  'テスト対策': ['テスト範囲の復習', '間違えた問題の解き直し', '前回の続き', '出そうなところの確認', 'テストで解けなかった問題', 'テストの結果を見ながら次の対策'],
+  '塾や学校の宿題': ['塾でわからなかったところ', '宿題で手が止まった問題', '前回の続き', '進め方の確認', '塾の宿題を一緒に片づける', '塾のテスト直しをする'],
+  '予習・復習': ['前回の復習', '次に進む単元の予習', '前回の続き', 'あいまいなところの確認', '今週習ったところの整理'],
+  '過去問演習': ['過去問の解き直し', '時間配分の確認', '前回の続き', '間違えた分野の補強', 'もう一度同じ年度を解く'],
+  '授業についていけない': ['つまずいたところまで戻る', 'わからないままの単元をひとつ', '前回の続き', '基本の確認', '教科書の例題からやり直す'],
+  '苦手意識': ['苦手な単元をひとつだけ', '解けた問題を増やす', '前回の続き', '基本のおさらい', 'できるところまで戻ってみる'],
+  '学習内容が難しい': ['ひとつ前の単元に戻る', 'つまずいた問題の解き直し', '前回の続き', '基本の確認', '例題だけを丁寧に'],
+  '勉強法がわからない': ['やり方を一緒に決める', '今週やることの整理', '前回の続き', '進め方の確認', 'ノートの使い方を見てもらう'],
+  '成績の伸び': ['伸ばしたい単元をひとつ', '間違えた問題の解き直し', '前回の続き', '弱点の確認', '得意をもう一段のばす'],
+  '集中力がない': ['短く区切って1単元', '前回の続き', '解けた問題を増やす', '基本のおさらい', '30分だけ集中してやる'],
+  'モチベーションが低い': ['できるところから1問', '前回の続き', '解けた問題を増やす', '軽めの復習', '好きな科目からはじめる'],
+  '学習計画': ['今週やることを決める', '前回の続き', '進み具合の確認', '次の目標の整理', '残りの日数から逆算する'],
+  '_default': ['前回の続き', '苦手なところの復習', 'わからなかった問題の解き直し', 'あいまいなところの確認', '基本のおさらい']
+};
+
+// 8月後半は宿題の仕上げ／2学期の先取りを混ぜる
+var PLAN_LATE_AUG_ = ['宿題の残りの仕上げ', '2学期のはじめの予習'];
+
+/**
+ * 「やること」の候補ライブラリ（plan.html の編集パネルにチップで出す）
+ * おすすめ生成のローテとは別。ユーザーが選び直すときの選択肢。
+ */
+var PLAN_CONTENT_LIBRARY_ = [
+  {
+    label: '塾・夏期講習',
+    items: [
+      '夏期講習の予習',
+      '夏期講習でわからなかったところ',
+      '講習で進んだ単元の定着',
+      '講習が終わったところの総復習',
+      '塾でわからなかったところ',
+      '塾の宿題で手が止まった問題',
+      '塾のテスト直しをする'
+    ]
+  },
+  {
+    label: 'テスト',
+    items: [
+      'テスト前の総復習',
+      'テスト範囲でまだ不安なところ',
+      'テストで解けなかった問題',
+      'テストの結果を見ながら次の対策',
+      '模試の解き直し'
+    ]
+  },
+  {
+    label: '宿題・課題',
+    items: [
+      '夏の宿題の残り',
+      '手をつけていない課題',
+      'ワークの進まないところ',
+      '読書感想文・自由研究の相談'
+    ]
+  },
+  {
+    label: '復習・苦手',
+    items: [
+      '前回の続き',
+      '苦手な単元をひとつだけ',
+      'つまずいたところまで戻る',
+      '解き方があいまいな単元の確認',
+      '基本のおさらい',
+      '間違えた問題の解き直し'
+    ]
+  },
+  {
+    label: '先取り',
+    items: [
+      '2学期のはじめの予習',
+      '次に進む単元の予習',
+      '得意をもう一段のばす'
+    ]
+  },
+  {
+    label: '進め方',
+    items: [
+      '今週やることを決める',
+      '残りの日数から逆算する',
+      '勉強のやり方を見てもらう',
+      '進み具合の確認'
+    ]
+  }
+];
+
+// ========================================
+// plan_get：初期表示データ
+// ========================================
+function planGet(data) {
+  var userId = data && data.userId;
+  if (!userId) return { success: false, code: 'INVALID_INPUT' };
+
+  var link = planResolveParent_(userId);
+  if (!link) return { success: false, code: 'NOT_LINKED' };
+  var parentId = link.parentId;
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // 1) students_lite から自分の子を集める
+  var stSh = ss.getSheetByName('students_lite');
+  var sd = stSh.getDataRange().getValues();
+  var sh0 = sd[0];
+  var sSid = sh0.indexOf('生徒ID'), sPid = sh0.indexOf('保護者ID'), sNick = sh0.indexOf('ニックネーム');
+  var mine = [];
+  for (var i = 1; i < sd.length; i++) {
+    if (String(sd[i][sPid]) === String(parentId)) {
+      mine.push({ studentId: String(sd[i][sSid]), studentName: sd[i][sNick] || '' });
+    }
+  }
+  if (!mine.length) return { success: false, code: 'NOT_FOUND' };
+
+  // 2) report_source からお悩み・ペース
+  var rsMap = {};
+  var rsSh = ss.getSheetByName('report_source');
+  if (rsSh) {
+    var rd = rsSh.getDataRange().getValues();
+    var rh = rd[0];
+    var rSid = rh.indexOf('生徒ID'), rNay = rh.indexOf('主お悩み'), r30 = rh.indexOf('直近30日受講数_済');
+    for (var j = 1; j < rd.length; j++) {
+      rsMap[String(rd[j][rSid])] = { nayami: rd[j][rNay], r30: Number(rd[j][r30]) || 0 };
+    }
+  }
+
+  // 3) lessons_lite から直近の受講時刻（受けやすい時間帯の初期値に使う）
+  var lastTimeMap = {};
+  var lsSh = ss.getSheetByName('lessons_lite');
+  if (lsSh) {
+    var ld = lsSh.getDataRange().getValues();
+    var lh = ld[0];
+    var lSid = lh.indexOf('生徒ID'), lEnd = lh.indexOf('授業の終了日時'), lConf = lh.indexOf('確定');
+    var now = new Date();
+    for (var k = 1; k < ld.length; k++) {
+      var end = ld[k][lEnd];
+      if (!end || typeof end.getMonth !== 'function') continue;   // ダックタイピングでDate判定
+      if (end > now) continue;                                     // 未来の予約は除く
+      var cf = String(ld[k][lConf]);
+      if (cf !== '1' && cf !== '確定') continue;
+      var sid = String(ld[k][lSid]);
+      if (!lastTimeMap[sid] || end > lastTimeMap[sid].at) {
+        lastTimeMap[sid] = { at: end };
+      }
+    }
+  }
+
+  // 4) 既に登録済みの未来の予定
+  var existing = {};
+  var pSh = ss.getSheetByName(PLAN_SHEET);
+  if (pSh && pSh.getLastRow() > 1) {
+    var pd = pSh.getDataRange().getValues();
+    var ph = pd[0];
+    var pSid = ph.indexOf('生徒ID'), pDate = ph.indexOf('予定日'), pTime = ph.indexOf('予定時刻'),
+        pCont = ph.indexOf('やること'), pStat = ph.indexOf('状態');
+    var todayStr = planFmtDate_(new Date());
+    for (var m = 1; m < pd.length; m++) {
+      if (String(pd[m][pStat]) !== '予定') continue;
+      var ds = planToDateStr_(pd[m][pDate]);
+      if (!ds || ds < todayStr) continue;
+      var s2 = String(pd[m][pSid]);
+      if (!existing[s2]) existing[s2] = [];
+      existing[s2].push({ date: ds, time: planToTimeStr_(pd[m][pTime]), content: pd[m][pCont] || '' });
+    }
+  }
+
+  // 5) 生徒ごとに組み立て
+  var students = mine.map(function (s) {
+    var rs = rsMap[s.studentId] || {};
+    var base = PLAN_CONTENTS_[rs.nayami] || PLAN_CONTENTS_['_default'];
+    var contents = base.concat(PLAN_LATE_AUG_);
+    var lt = lastTimeMap[s.studentId];
+    return {
+      studentId: s.studentId,
+      studentName: s.studentName,
+      nayami: rs.nayami || '',
+      perWeek: rs.r30 ? Math.max(1, Math.min(4, Math.round(rs.r30 / 4.3))) : 1,
+      recentTime: lt ? planFmtTime_(lt.at) : null,
+      contents: contents,
+      existingPlans: existing[s.studentId] || []
+    };
+  });
+
+  // 夏休みの終わりの目安（8/31）。9月以降に開いた場合は30日後
+  var now2 = new Date();
+  var defEnd = (now2.getMonth() <= 7)
+    ? new Date(now2.getFullYear(), 7, 31)
+    : new Date(now2.getTime() + 30 * 86400000);
+
+  return {
+    success: true,
+    parentName: link.parentName || '',
+    defaultEnd: planFmtDate_(defEnd),
+    library: PLAN_CONTENT_LIBRARY_,
+    students: students
+  };
+}
+
+// ========================================
+// plan_save：保存（所有検証つき）
+// ========================================
+function planSave(data) {
+  var userId = data && data.userId;
+  var studentId = data && data.studentId;
+  var plans = (data && data.plans) || [];
+  if (!userId || !studentId) return { success: false, code: 'INVALID_INPUT' };
+
+  var link = planResolveParent_(userId);
+  if (!link) return { success: false, code: 'NOT_LINKED' };
+  var parentId = link.parentId;
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // 所有検証：この生徒IDが本当にこの保護者の子か
+  var stSh = ss.getSheetByName('students_lite');
+  var sd = stSh.getDataRange().getValues();
+  var sh0 = sd[0];
+  var sSid = sh0.indexOf('生徒ID'), sPid = sh0.indexOf('保護者ID'), sNick = sh0.indexOf('ニックネーム');
+  var studentName = null;
+  for (var i = 1; i < sd.length; i++) {
+    if (String(sd[i][sSid]) === String(studentId) && String(sd[i][sPid]) === String(parentId)) {
+      studentName = sd[i][sNick] || '';
+      break;
+    }
+  }
+  if (studentName === null) return { success: false, code: 'NOT_FOUND' };
+
+  ensurePlanSheets_();
+  var pSh = ss.getSheetByName(PLAN_SHEET);
+  var todayStr = planFmtDate_(new Date());
+
+  // この生徒の「今日以降・状態=予定」の行をいったん消す（＝置きかえ）
+  if (pSh.getLastRow() > 1) {
+    var pd = pSh.getDataRange().getValues();
+    var ph = pd[0];
+    var cSid = ph.indexOf('生徒ID'), cDate = ph.indexOf('予定日'), cStat = ph.indexOf('状態');
+    for (var r = pd.length - 1; r >= 1; r--) {
+      if (String(pd[r][cSid]) !== String(studentId)) continue;
+      if (String(pd[r][cStat]) !== '予定') continue;
+      var ds = planToDateStr_(pd[r][cDate]);
+      if (ds && ds >= todayStr) pSh.deleteRow(r + 1);
+    }
+  }
+
+  // 追記
+  var now = new Date();
+  var rows = [];
+  plans.forEach(function (p, idx) {
+    if (!p || !p.date) return;
+    if (String(p.date) < todayStr) return;   // 過去日は登録しない
+    rows.push([
+      'P' + now.getTime() + '_' + idx,
+      parentId,
+      studentId,
+      studentName,
+      p.date,
+      p.time || '19:00',
+      String(p.content || '').slice(0, 40),
+      '予定',
+      now,
+      ''
+    ]);
+  });
+  if (rows.length) {
+    pSh.getRange(pSh.getLastRow() + 1, 1, rows.length, PLAN_HEADERS.length).setValues(rows);
+  }
+
+  // 埋まっている曜日を保存
+  var cSh = ss.getSheetByName(PLAN_CONFIG_SHEET);
+  var busy = (data.busyDays || []).join(',');
+  var cd = cSh.getDataRange().getValues();
+  var ch = cd[0];
+  var kSid = ch.indexOf('生徒ID'), kBusy = ch.indexOf('埋まっている曜日'), kUpd = ch.indexOf('更新日時');
+  var found = -1;
+  for (var q = 1; q < cd.length; q++) {
+    if (String(cd[q][kSid]) === String(studentId)) { found = q + 1; break; }
+  }
+  if (found > 0) {
+    cSh.getRange(found, kBusy + 1).setValue(busy);
+    cSh.getRange(found, kUpd + 1).setValue(now);
+  } else {
+    cSh.appendRow([parentId, studentId, busy, now]);
+  }
+
+  return { success: true, saved: rows.length };
+}
+
+// ========================================
+// 前日リマインド（毎日10:00）
+// ========================================
+function sendPlanReminders() {
+  var token = PropertiesService.getScriptProperties().getProperty('LINE_CHANNEL_ACCESS_TOKEN');
+  if (!token) { console.error('LINE_CHANNEL_ACCESS_TOKEN 未設定'); return; }
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var pSh = ss.getSheetByName(PLAN_SHEET);
+  if (!pSh || pSh.getLastRow() < 2) { console.log('計画なし'); return; }
+
+  var tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  var tomorrowStr = planFmtDate_(tomorrow);
+
+  // 保護者ID → userId
+  var lk = ss.getSheetByName('紐付けマスタ').getDataRange().getValues();
+  var lh = lk[0];
+  var lPid = lh.indexOf('保護者ID'), lUid = lh.indexOf('LINE_userId'), lOpt = lh.indexOf('配信オプトイン');
+  var uidMap = {};
+  for (var i = 1; i < lk.length; i++) {
+    if (lOpt >= 0 && lk[i][lOpt] !== true && String(lk[i][lOpt]).toUpperCase() !== 'TRUE') continue;
+    uidMap[String(lk[i][lPid])] = lk[i][lUid];
+  }
+
+  // 「明日すでに確定予約が入っている生徒」には送らない（予約済みに催促しない）
+  var alreadyBooked = {};
+  var lsSh = ss.getSheetByName('lessons_lite');
+  if (lsSh) {
+    var ld = lsSh.getDataRange().getValues();
+    var lh2 = ld[0];
+    var xSid = lh2.indexOf('生徒ID'), xEnd = lh2.indexOf('授業の終了日時'), xConf = lh2.indexOf('確定');
+    for (var j = 1; j < ld.length; j++) {
+      var e = ld[j][xEnd];
+      if (!e || typeof e.getMonth !== 'function') continue;
+      var cf = String(ld[j][xConf]);
+      if (cf !== '1' && cf !== '確定') continue;
+      if (planFmtDate_(e) === tomorrowStr) alreadyBooked[String(ld[j][xSid])] = true;
+    }
+  }
+
+  var pd = pSh.getDataRange().getValues();
+  var ph = pd[0];
+  var cPid = ph.indexOf('保護者ID'), cSid = ph.indexOf('生徒ID'), cName = ph.indexOf('生徒名'),
+      cDate = ph.indexOf('予定日'), cTime = ph.indexOf('予定時刻'), cCont = ph.indexOf('やること'),
+      cStat = ph.indexOf('状態'), cSent = ph.indexOf('リマインド送信日時');
+
+  var sent = 0, skipped = 0;
+  for (var r = 1; r < pd.length; r++) {
+    if (String(pd[r][cStat]) !== '予定') continue;
+    if (pd[r][cSent]) continue;
+    if (planToDateStr_(pd[r][cDate]) !== tomorrowStr) continue;
+
+    var sid = String(pd[r][cSid]);
+    if (alreadyBooked[sid]) {
+      pSh.getRange(r + 1, cSent + 1).setValue('予約済のためスキップ');
+      skipped++; continue;
+    }
+    var uid = uidMap[String(pd[r][cPid])];
+    if (!uid) { skipped++; continue; }
+
+    var msg = buildPlanReminderFlex_({
+      studentName: pd[r][cName] || 'お子さん',
+      dateStr: tomorrowStr,
+      time: planToTimeStr_(pd[r][cTime]),
+      content: pd[r][cCont] || ''
+    });
+
+    var res = UrlFetchApp.fetch('https://api.line.me/v2/bot/message/push', {
+      method: 'post', contentType: 'application/json',
+      headers: { Authorization: 'Bearer ' + token },
+      payload: JSON.stringify({ to: uid, messages: [msg] }),
+      muteHttpExceptions: true
+    });
+    if (res.getResponseCode() === 200) {
+      pSh.getRange(r + 1, cSent + 1).setValue(new Date());
+      sent++;
+    } else {
+      console.error('push失敗', uid, res.getResponseCode(), res.getContentText());
+    }
+    Utilities.sleep(120);
+  }
+  console.log('前日リマインド 送信' + sent + '件 / スキップ' + skipped + '件（対象日 ' + tomorrowStr + '）');
+}
+
+function buildPlanReminderFlex_(o) {
+  var d = new Date(o.dateStr.replace(/-/g, '/'));
+  var dow = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+  var dateLabel = (d.getMonth() + 1) + '/' + d.getDate() + '(' + dow + ') ' + o.time;
+
+  return {
+    "type": "flex",
+    "altText": '明日 ' + dateLabel + ' に予定を入れています。' + (o.content || ''),
+    "contents": {
+      "type": "bubble",
+      "size": "kilo",
+      "header": {
+        "type": "box", "layout": "vertical",
+        "backgroundColor": "#06C755", "paddingAll": "14px",
+        "contents": [
+          { "type": "text", "text": "明日の予定", "size": "xs", "color": "#E6F6EC" },
+          { "type": "text", "text": dateLabel, "size": "lg", "weight": "bold", "color": "#FFFFFF", "wrap": true, "margin": "xs" }
+        ]
+      },
+      "body": {
+        "type": "box", "layout": "vertical", "paddingAll": "14px", "spacing": "sm",
+        "contents": [
+          {
+            "type": "text",
+            "text": o.studentName + 'さんの予定に「' + (o.content || '前回の続き') + '」を入れています。',
+            "size": "sm", "color": "#33332f", "wrap": true
+          },
+          {
+            "type": "text",
+            "text": "明日のことなので、今日のうちに予約しておくと確実です。都合が変わっていれば、予定の方をずらしてしまって大丈夫です。",
+            "size": "xs", "color": "#8a8a82", "wrap": true, "margin": "sm"
+          }
+        ]
+      },
+      "footer": {
+        "type": "box", "layout": "vertical", "spacing": "sm", "paddingAll": "14px",
+        "contents": [
+          {
+            "type": "button", "style": "primary", "color": "#06C755", "height": "sm",
+            "action": { "type": "uri", "label": "予約する", "uri": PLAN_RESERVATION_URL }
+          },
+          {
+            "type": "button", "style": "secondary", "height": "sm",
+            "action": { "type": "uri", "label": "予定を変更する", "uri": PLAN_LIFF_URL }
+          }
+        ]
+      }
+    }
+  };
+}
+
+// ========================================
+// 当日朝リマインド（予約が入っている人向け・毎日7:30）
+// ========================================
+/**
+ * 前日リマインド（計画があって予約がまだの人）とは別物。
+ * こちらは「もう予約が入っている人」に、当日の朝「今日は授業の予定です」と伝える。
+ *
+ * キャンセルの扱い:
+ *   lessons_lite の元クエリ Q330 は WHERE に canceled = 0 を持つ（2026-07-28 確認済み）。
+ *   キャンセルされた授業は次の同期（15分毎）でシートから消えるので、ここには載らない。
+ *   ただし confirmed は Q330 の WHERE に無いため、下で「確定」列を必ずチェックすること。
+ *
+ * 二重送信防止: 当日通知ログ シートに「日付＋保護者ID」で記録。1日1通まで。
+ */
+var PLAN_TODAY_LOG_SHEET = '当日通知ログ';
+var PLAN_TODAY_LOG_HEADERS = ['日付', '保護者ID', '生徒名', '件数', '送信日時'];
+
+function sendTodayLessonReminders() {
+  var token = PropertiesService.getScriptProperties().getProperty('LINE_CHANNEL_ACCESS_TOKEN');
+  if (!token) { console.error('LINE_CHANNEL_ACCESS_TOKEN 未設定'); return; }
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var lsSh = ss.getSheetByName('lessons_lite');
+  if (!lsSh || lsSh.getLastRow() < 2) { console.log('lessons_lite なし'); return; }
+
+  var todayStr = planFmtDate_(new Date());
+
+  // 1) 今日の確定授業を保護者ごとに集める
+  var ld = lsSh.getDataRange().getValues();
+  var h = ld[0];
+  var cPid = h.indexOf('保護者ID'), cSid = h.indexOf('生徒ID'), cSName = h.indexOf('生徒のニックネーム'),
+      cTName = h.indexOf('先生のニックネーム'), cEnd = h.indexOf('授業の終了日時'), cConf = h.indexOf('確定');
+
+  var byParent = {};
+  for (var i = 1; i < ld.length; i++) {
+    var end = ld[i][cEnd];
+    if (!end || typeof end.getMonth !== 'function') continue;
+    if (planFmtDate_(end) !== todayStr) continue;
+    var cf = String(ld[i][cConf]);
+    if (cf !== '1' && cf !== '確定') continue;          // 未確定は送らない
+    var pid = String(ld[i][cPid]);
+    if (!byParent[pid]) byParent[pid] = [];
+    byParent[pid].push({
+      studentName: ld[i][cSName] || 'お子さん',
+      teacherName: ld[i][cTName] || '',
+      at: end
+    });
+  }
+  var pids = Object.keys(byParent);
+  if (!pids.length) { console.log('今日の確定授業なし'); return; }
+
+  // 2) 紐付け＆オプトイン
+  var lk = ss.getSheetByName('紐付けマスタ').getDataRange().getValues();
+  var lh = lk[0];
+  var lPid = lh.indexOf('保護者ID'), lUid = lh.indexOf('LINE_userId'), lOpt = lh.indexOf('配信オプトイン');
+  var uidMap = {};
+  for (var j = 1; j < lk.length; j++) {
+    if (lOpt >= 0 && lk[j][lOpt] !== true && String(lk[j][lOpt]).toUpperCase() !== 'TRUE') continue;
+    uidMap[String(lk[j][lPid])] = lk[j][lUid];
+  }
+
+  // 3) 送信済みログ
+  var logSh = ss.getSheetByName(PLAN_TODAY_LOG_SHEET);
+  if (!logSh) {
+    logSh = ss.insertSheet(PLAN_TODAY_LOG_SHEET);
+    logSh.getRange(1, 1, 1, PLAN_TODAY_LOG_HEADERS.length).setValues([PLAN_TODAY_LOG_HEADERS]).setFontWeight('bold');
+    logSh.setFrozenRows(1);
+  }
+  var sentToday = {};
+  if (logSh.getLastRow() > 1) {
+    var gd = logSh.getDataRange().getValues();
+    var gh = gd[0];
+    var gDate = gh.indexOf('日付'), gPid = gh.indexOf('保護者ID');
+    for (var k = 1; k < gd.length; k++) {
+      if (planToDateStr_(gd[k][gDate]) === todayStr) sentToday[String(gd[k][gPid])] = true;
+    }
+  }
+
+  // 4) 送信
+  var sent = 0, skipped = 0, rows = [];
+  pids.forEach(function (pid) {
+    if (sentToday[pid]) { skipped++; return; }
+    var uid = uidMap[pid];
+    if (!uid) { skipped++; return; }
+
+    var lessons = byParent[pid].sort(function (a, b) { return a.at - b.at; });
+    var msg = buildTodayLessonFlex_(lessons);
+
+    var res = UrlFetchApp.fetch('https://api.line.me/v2/bot/message/push', {
+      method: 'post', contentType: 'application/json',
+      headers: { Authorization: 'Bearer ' + token },
+      payload: JSON.stringify({ to: uid, messages: [msg] }),
+      muteHttpExceptions: true
+    });
+    if (res.getResponseCode() === 200) {
+      rows.push([todayStr, pid, lessons[0].studentName, lessons.length, new Date()]);
+      sent++;
+    } else {
+      console.error('push失敗', uid, res.getResponseCode(), res.getContentText());
+    }
+    Utilities.sleep(120);
+  });
+  if (rows.length) logSh.getRange(logSh.getLastRow() + 1, 1, rows.length, PLAN_TODAY_LOG_HEADERS.length).setValues(rows);
+  console.log('当日リマインド 送信' + sent + '件 / スキップ' + skipped + '件（' + todayStr + '）');
+}
+
+function buildTodayLessonFlex_(lessons) {
+  var first = lessons[0];
+  var headline = lessons.length === 1
+    ? '今日 ' + planFmtTime_(first.at) + ' から'
+    : '今日 授業が' + lessons.length + '件';
+
+  var listRows = lessons.map(function (l) {
+    return {
+      "type": "box", "layout": "baseline", "spacing": "sm",
+      "contents": [
+        { "type": "text", "text": planFmtTime_(l.at), "size": "sm", "weight": "bold", "color": "#05a748", "flex": 0 },
+        { "type": "text", "text": (l.teacherName ? l.teacherName + '先生' : '授業'), "size": "sm", "color": "#33332f", "wrap": true }
+      ]
+    };
+  });
+
+  return {
+    "type": "flex",
+    "altText": headline + ' 授業の予定です。' + first.studentName + 'さん',
+    "contents": {
+      "type": "bubble",
+      "size": "kilo",
+      "header": {
+        "type": "box", "layout": "vertical", "backgroundColor": "#06C755", "paddingAll": "14px",
+        "contents": [
+          { "type": "text", "text": "今日の授業", "size": "xs", "color": "#E6F6EC" },
+          { "type": "text", "text": headline, "size": "lg", "weight": "bold", "color": "#FFFFFF", "wrap": true, "margin": "xs" }
+        ]
+      },
+      "body": {
+        "type": "box", "layout": "vertical", "paddingAll": "14px", "spacing": "sm",
+        "contents": [
+          {
+            "type": "text",
+            "text": first.studentName + 'さんの授業が今日入っています。',
+            "size": "sm", "color": "#33332f", "wrap": true
+          },
+          {
+            "type": "box", "layout": "vertical", "spacing": "sm", "margin": "md",
+            "backgroundColor": "#F7FAF1", "cornerRadius": "md", "paddingAll": "12px",
+            "contents": listRows
+          },
+          {
+            "type": "text",
+            "text": "教材や、聞きたいところを先に決めておくと、時間をむだなく使えます。",
+            "size": "xs", "color": "#5c5c55", "wrap": true, "margin": "md"
+          }
+        ]
+      },
+      "footer": {
+        "type": "box", "layout": "vertical", "paddingAll": "14px",
+        "contents": [
+          {
+            "type": "button", "style": "primary", "color": "#06C755", "height": "sm",
+            "action": { "type": "uri", "label": "アプリで確認する", "uri": PLAN_RESERVATION_URL }
+          }
+        ]
+      }
+    }
+  };
+}
+
+// 当日リマインドのトリガー（1回手動実行）
+// 朝7:30台。前日リマインド(10時)・翌朝レポート(8:58)と時間帯をずらしてある。
+function setupTodayLessonTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'sendTodayLessonReminders') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('sendTodayLessonReminders').timeBased().atHour(7).nearMinute(30).everyDays(1).create();
+  console.log('毎日7時半ごろの sendTodayLessonReminders トリガーを設定しました');
+}
+
+// テスト：自分に1通プレビュー（実データは使わないのでログも汚さない）
+function testTodayLessonToMe() {
+  var token = PropertiesService.getScriptProperties().getProperty('LINE_CHANNEL_ACCESS_TOKEN');
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var d = ss.getSheetByName('紐付けマスタ').getDataRange().getValues();
+  var uid = d[1][d[0].indexOf('LINE_userId')];
+  var t = new Date(); t.setHours(15, 30, 0, 0);
+  var msg = buildTodayLessonFlex_([{ studentName: '太郎', teacherName: 'みい', at: t }]);
+  var res = UrlFetchApp.fetch('https://api.line.me/v2/bot/message/push', {
+    method: 'post', contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + token },
+    payload: JSON.stringify({ to: uid, messages: [msg] }), muteHttpExceptions: true
+  });
+  console.log('test push →', uid, res.getResponseCode(), res.getContentText());
+}
+
+// トリガー設定（1回手動実行）
+function setupPlanReminderTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'sendPlanReminders') ScriptApp.deleteTrigger(t);
+  });
+  // 朝10時台。夜だと翌日の枠を持つ先生が限られるため、日中に予約できる時間に送る。
+  // 翌朝レポート（8:58）と重ならないよう1時間以上あけてある。
+  ScriptApp.newTrigger('sendPlanReminders').timeBased().atHour(10).everyDays(1).create();
+  console.log('毎日10時台の sendPlanReminders トリガーを設定しました');
+}
+
+// テスト：自分に1通プレビュー
+function testPlanReminderToMe() {
+  var token = PropertiesService.getScriptProperties().getProperty('LINE_CHANNEL_ACCESS_TOKEN');
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var d = ss.getSheetByName('紐付けマスタ').getDataRange().getValues();
+  var uid = d[1][d[0].indexOf('LINE_userId')];
+  var t = new Date(); t.setDate(t.getDate() + 1);
+  var msg = buildPlanReminderFlex_({
+    studentName: '太郎', dateStr: planFmtDate_(t), time: '19:00', content: '苦手な分野をひとつ集中して'
+  });
+  var res = UrlFetchApp.fetch('https://api.line.me/v2/bot/message/push', {
+    method: 'post', contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + token },
+    payload: JSON.stringify({ to: uid, messages: [msg] }), muteHttpExceptions: true
+  });
+  console.log('test push →', uid, res.getResponseCode(), res.getContentText());
+}
+
+// ========================================
+// ユーティリティ
+// ========================================
+function planFmtDate_(d) {
+  if (!d || typeof d.getMonth !== 'function') return '';
+  var m = ('0' + (d.getMonth() + 1)).slice(-2);
+  var dd = ('0' + d.getDate()).slice(-2);
+  return d.getFullYear() + '-' + m + '-' + dd;
+}
+function planFmtTime_(d) {
+  if (!d || typeof d.getMonth !== 'function') return null;
+  return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+}
+// シートの値が Date でも文字列でも 'YYYY-MM-DD' に揃える
+function planToDateStr_(v) {
+  if (!v) return '';
+  if (typeof v.getMonth === 'function') return planFmtDate_(v);
+  var s = String(v).trim().replace(/\//g, '-');
+  var m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (!m) return '';
+  return m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2);
+}
+function planToTimeStr_(v) {
+  if (!v) return '19:00';
+  if (typeof v.getMonth === 'function') return planFmtTime_(v);
+  var s = String(v).trim();
+  var m = s.match(/(\d{1,2}):(\d{2})/);
+  return m ? ('0' + m[1]).slice(-2) + ':' + m[2] : '19:00';
+}
