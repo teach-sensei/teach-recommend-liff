@@ -11,7 +11,9 @@ body {
   font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
   margin: 0; background: #f5f4ef; color: #1a1a1a;
 }
-.container { max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: 112px; }
+/* min-height:100vh は入れない。iOSのWebViewはスクロールでアドレスバーが伸縮し、
+   100vh の値自体が変わるため、固定フッターがガタつく原因になる。 */
+.container { max-width: 480px; margin: 0 auto; padding-bottom: 120px; }
 .header { background: #06C755; padding: 16px; }
 .header .eyebrow { font-size: 11px; color: #E6F6EC; margin: 0 0 3px; letter-spacing: .05em; }
 .header h1 { font-size: 17px; color: #fff; margin: 0; font-weight: 700; }
@@ -49,6 +51,8 @@ body {
   position: sticky; top: 0; z-index: 5;
   background: #f5f4ef; padding: 10px 0 6px;
   font-size: 13px; color: #3f3f39; font-weight: 700;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 .weekhead span { font-weight: 400; color: #5c5c55; font-size: 12px; margin-left: 6px; }
 
@@ -174,6 +178,14 @@ input:focus, select:focus { outline: 2px solid #06C755; outline-offset: -1px; }
   position: fixed; bottom: 0; left: 0; right: 0; background: #fff;
   border-top: 1px solid #e3e2da; padding: 10px 14px 14px;
   max-width: 480px; margin: 0 auto;
+  /* スクロール中のちらつき対策：GPUレイヤーに固定し、再描画のたびに揺れないようにする */
+  z-index: 20;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom));
 }
 .footer-note {
   font-size: 12px; color: #3f3f39; text-align: center; margin: 0 0 9px; line-height: 1.5;
