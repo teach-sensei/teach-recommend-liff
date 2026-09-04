@@ -24,8 +24,10 @@
     th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);}
     th{color:var(--muted);font-weight:600;background:#fafafa;}
     .pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;}
+    .pill.pending{background:#eceff1;color:#546e7a;}
     .pill.registered{background:#fff3cd;color:#8a6d00;}
     .pill.lessoned{background:#d6f5d6;color:#1a7a1a;}
+    .pill.invalid_self,.pill.invalid_dup{background:#fde0e0;color:#a33;}
     .msg{color:var(--muted);padding:16px 0;}
     .err{color:#d33;}
   </style>
@@ -97,6 +99,7 @@
       const kpi = [
         ['紹介者数', s.referrers],
         ['紐付け総数', s.totalLinks],
+        ['確認待ち', s.pending || 0],
         ['登録到達', s.registered],
         ['受講到達', s.lessoned],
         ['受講転換率', s.conversionToLesson+'%'],
