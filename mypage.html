@@ -170,7 +170,7 @@
           <div class="q">スタンプはいつ届く？</div>
           <div class="a">授業を受けた翌朝に届きます。予約しただけでは届きません。受け取らなくても、特典の対象からは外れません。</div>
           <div class="q">「授業料をお返し」はどういうこと？</div>
-          <div class="a">予約もお支払いもいつも通りです。特典を使う授業が終わったら、その授業料をTeachが自動で返金します（60分を超える授業は60分ぶん。お支払いのカードへ・数日〜1週間ほど）。何もしなくて大丈夫です。</div>
+          <div class="a">特典を手に入れたあとに受ける最初の授業1回が対象です（すでに予約している授業でもOK。兄弟の授業でもOK）。予約もお支払いもいつも通りで、授業が終わったらTeachが授業料を自動で返金します（60分を超える授業は60分ぶん。お支払いのカードへ・数日〜1週間ほど）。予約がキャンセルになったときは、次の授業が自動で対象になります。何もしなくて大丈夫です。</div>
           <div class="q">毎週チャレンジの「週」は？</div>
           <div class="a">月曜〜日曜で数えます。1週だけ休んでも続いたことになります（おやすみ週・4週に1回）。2週休むと1週目からやり直しです。</div>
           <div class="q">「ためたスタンプ」は何に使える？</div>
@@ -374,7 +374,7 @@
         case '予定':
           return `<div class="ticket"><div class="lab">🎁 特典ゲット！ あとは予約するだけ</div>
             <div class="when" style="font-size:17px">次の授業料を1回分お返し</div>
-            <div class="sub">予約もお支払いもいつも通りでOK。授業が終わったら、Teachが授業料を自動で返金します（60分を超える授業は60分ぶん）。<b>${NO_ACTION}</b>${md(r.expire) ? `<br>${md(r.expire)}までの予約が対象です` : ''}</div></div>${book}`;
+            <div class="sub">次に受ける授業1回が対象です。すでに予約している授業があれば、その授業が自動で対象になります。予約もお支払いもいつも通りでOK。授業が終わったら、Teachが授業料を自動で返金します（60分を超える授業は60分ぶん）。<b>${NO_ACTION}</b>${md(r.expire) ? `<br>${md(r.expire)}までに受ける授業が対象です` : ''}</div></div>${book}`;
         case 'リクエスト中':
           return `<div class="ticket"><div class="lab">⏳ 先生の承認待ち</div><div class="when">${when(r.lessonStart)}</div>
             <div class="sub">先生が承認すると、この授業の授業料を授業のあとに自動で返金します。${NO_ACTION}</div></div>`;
@@ -420,7 +420,7 @@
       $('cel-title').textContent = `${card.name} 達成！`;
       const isPt = r.status === '付与済み';
       $('cel-body').innerHTML = isPt ? `交換に使えるスタンプ <b>+${r.yen}個</b> をスタンプ帳にためました。`
-        : `<b>特典ゲット！</b><br>次の授業1回分の<b>授業料をお返し</b>します。<br>予約もお支払いもいつも通りでOK。返金はTeachが自動で行うので、<b>何もしなくて大丈夫です</b>${md(r.expire) ? `<br>（${md(r.expire)}までの予約が対象）` : ''}`;
+        : `<b>特典ゲット！</b><br>次に受ける授業1回分の<b>授業料をお返し</b>します。<br>予約もお支払いもいつも通りでOK。返金はTeachが自動で行うので、<b>何もしなくて大丈夫です</b>${md(r.expire) ? `<br>（${md(r.expire)}までに受ける授業が対象）` : ''}`;
       $('cel-book').hidden = isPt;
       setTimeout(() => { $('celebrate').hidden = false; }, 600);
     }
