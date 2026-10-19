@@ -63,6 +63,16 @@
     .celebrate .in { background: #fff; border-radius: 16px; padding: 22px 18px; max-width: 360px; text-align: center; display: grid; gap: 10px; animation: pop .5s ease-out; }
     .celebrate .big { font-size: 40px; }
     .celebrate button { border: 0; border-radius: 10px; padding: 11px; background: var(--accent); color: #fff; font-weight: 700; font-size: 14px; }
+    .st.wait { cursor: pointer; }
+    .hanko { position: fixed; inset: 0; display: grid; place-items: center; z-index: 20; pointer-events: none; }
+    .hanko .seal { width: 150px; height: 150px; border-radius: 50%; border: 8px solid #D92D20; color: #D92D20; display: grid; place-items: center;
+                   font-size: 34px; font-weight: 800; background: rgba(255,255,255,.85); transform: rotate(-12deg); animation: slam .45s cubic-bezier(.2,1.6,.4,1); }
+    .hanko .seal small { display: block; font-size: 13px; font-weight: 700; text-align: center; }
+    @keyframes slam { 0% { transform: scale(2.6) rotate(-25deg); opacity: 0; } 70% { transform: scale(.92) rotate(-10deg); opacity: 1; } 100% { transform: scale(1) rotate(-12deg); } }
+    .got { background: var(--ok-soft); color: var(--ok); border-radius: 12px; padding: 10px 12px; font-size: 13px; font-weight: 700; }
+    .menu-li { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: rgba(255,255,255,.16); border-radius: 10px; padding: 8px 10px; font-size: 12px; margin-top: 6px; }
+    .menu-li button { border: 0; border-radius: 8px; padding: 6px 10px; font-size: 11px; font-weight: 700; background: #fff; color: #3157D5; }
+    .menu-li button:disabled { opacity: .55; }
     [hidden] { display: none !important; }
   </style>
 </head>
@@ -85,12 +95,15 @@
       <div class="page" style="padding:0">
         <div class="claim" id="claim-box" hidden>
           <div>🎁 スタンプが <b id="claim-num">0</b> 個 届いています</div>
-          <button id="claim-btn" type="button">スタンプを受け取る</button>
+          <div style="font-size:13px">光っているスタンプを<b>タップして受け取ろう</b></div>
+          <button id="claim-btn" type="button" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,.7);padding:8px;font-size:13px">まとめて受け取る</button>
         </div>
+        <div class="got" id="got-box" hidden></div>
         <div class="box points" id="points-box" hidden>
           <small>Teachポイント</small>
           <div class="num"><span id="pt-num">0</span><span> pt</span></div>
           <div class="ex" id="pt-ex" hidden></div>
+          <div id="pt-menu"></div>
         </div>
 
         <h3>参加中のチャレンジ</h3>
@@ -105,6 +118,7 @@
     </div>
   </div>
 
+  <div class="hanko" id="hanko" hidden><div class="seal"><div>受取<small id="hanko-sub"></small></div></div></div>
   <div class="celebrate" id="celebrate" hidden>
     <div class="in">
       <div class="big">🎉</div>
@@ -124,7 +138,7 @@
     // 施策ごとの見せ方（施策を足したらここに1行）
     const CAMPAIGN_VIEW = {
       starter_v1: { icon: '🎫', style: 'stamps' },
-      weekly_v1:  { icon: '📅', style: 'bar', unitLabel: '週' },
+      weekly_v1:  { icon: '📅', style: 'stamps', unitLabel: '週', cellLabel: k => `${k + 1}週` },
       referral:   { icon: '🤝', style: 'count' },
     };
 
@@ -149,6 +163,8 @@
         $('pt-num').textContent = (data.points || 0).toLocaleString('ja-JP');
         const next = menu.find(m => m['必要pt'] > data.points);
         const can = menu.filter(m => m['必要pt'] <= data.points);
+        $('pt-menu').innerHTML = menu.map(m => `<div class="menu-li"><div><b>${m['必要pt']}pt</b>　${esc(m['名前'])}</div>
+          <button type="button" disabled>${m['必要pt'] <= data.points ? '交換する（準備中）' : `あと${m['必要pt'] - data.points}pt`}</button></div>`).join('');
         if (can.length) { $('pt-ex').hidden = false; $('pt-ex').innerHTML = `「${esc(can[can.length - 1]['名前'])}」と交換できます。トークで「ポイント交換」とお送りください`; }
         else if (next) { $('pt-ex').hidden = false; $('pt-ex').innerHTML = `あと <b>${next['必要pt'] - data.points}pt</b> で「${esc(next['名前'])}」と交換できます`; }
       }
@@ -158,6 +174,8 @@
       $('claim-box').hidden = waiting === 0;
       $('claim-num').textContent = waiting;
       $('claim-btn').disabled = false;
+      $('got-box').hidden = !gotSummary;
+      $('got-box').innerHTML = gotSummary;
 
       // カード
       const cards = data.cards || [];
@@ -192,8 +210,8 @@
       if (v.style === 'stamps' && c.goal) {
         body += '<div class="stamps">' + Array.from({ length: c.goal }, (_, k) => {
           if (k < got) return `<div class="st on ${k >= got - fresh ? 'pop' : ''}">✓</div>`;
-          if (k < c.progress) return '<div class="st wait">受取</div>';
-          return `<div class="st">${k + 1}</div>`;
+          if (k < c.progress) return `<div class="st wait" data-c="${c.id}" onclick="tapStamp(this)">受取</div>`;
+          return `<div class="st">${v.cellLabel ? v.cellLabel(k) : k + 1}</div>`;
         }).join('') + '</div>';
       } else if (v.style === 'bar' && c.goal) {
         body += `<div class="bar"><i style="width:${Math.round(100 * got / c.goal)}%"></i><i class="wait" style="width:${Math.round(100 * (c.progress - got) / c.goal)}%"></i></div>`;
@@ -216,35 +234,73 @@
     }
 
     // ---------- 受け取り ----------
-    let justClaimed = {};
+    //   光っているスタンプを1個ずつタップ → ハンコの演出。1個目のタップで裏で受け取りを記録し、全部押し終わったら描き直す
+    let justClaimed = {}, gotSummary = '';
     let last = null, idTokenCache = null, demoMode = false;
-    async function claim() {
-      $('claim-btn').disabled = true;
-      const before = Object.fromEntries((last.cards || []).map(c => [c.id, c]));
-      let data;
-      if (demoMode) {   // デモ：手元で受け取ったことにする
-        data = JSON.parse(JSON.stringify(last));
-        data.claimed = {};
+    let claimPromise = null, before = null, tapped = {};
+    const NAMES = () => Object.fromEntries((last.cards || []).map(c => [c.id, c.name]));
+
+    function requestClaim() {
+      if (claimPromise) return claimPromise;
+      before = Object.fromEntries((last.cards || []).map(c => [c.id, JSON.parse(JSON.stringify(c))]));
+      if (demoMode) {
+        const data = JSON.parse(JSON.stringify(last)); data.claimed = {};
         data.cards.forEach(c => { if (c.claimable) { data.claimed[c.id] = c.claimable; c.claimed = c.progress; c.claimable = 0;
           if (c.pendingReward) { c.pendingReward = false; c.finished = true; c.rewards = c._rewardsAfter || []; } } });
+        claimPromise = Promise.resolve(data);
       } else {
-        const res = await fetch(GAS_ENDPOINT, { method: 'POST', body: new URLSearchParams({ type: 'claim', idToken: idTokenCache }) });
-        data = await res.json();
-        if (!data.ok) { fail('受け取りに失敗しました。時間をおいて、もう一度開いてください。'); return; }
+        claimPromise = fetch(GAS_ENDPOINT, { method: 'POST', body: new URLSearchParams({ type: 'claim', idToken: idTokenCache }) }).then(r => r.json());
       }
-      justClaimed = data.claimed || {};
-      last = data;
-      render(data);
-      // 達成の演出：受け取ったことで特典が見えるようになったカード
-      const reached = (data.cards || []).find(c => (before[c.id] || {}).pendingReward && (c.rewards || []).length > ((before[c.id] || {}).rewards || []).length);
-      if (reached) {
-        const r = reached.rewards[reached.rewards.length - 1];
-        $('cel-title').textContent = `${reached.name} 達成！`;
-        $('cel-body').innerHTML = r.status === '付与済み' ? `Teachポイント <b>+${r.yen}pt</b> をお送りしました。`
-          : `特典：${md(r.expire) ? md(r.expire) + 'までに' : ''}アプリで予約した授業1回分の授業料をお返しします（60分を超える授業は60分ぶん）。お手続きは不要です。`;
-        setTimeout(() => { $('celebrate').hidden = false; }, 700);
-      }
-      setTimeout(() => { justClaimed = {}; }, 800);
+      return claimPromise;
+    }
+
+    function hanko(sub) {
+      $('hanko-sub').textContent = sub || '';
+      $('hanko').hidden = true; void $('hanko').offsetWidth; $('hanko').hidden = false;
+      if (navigator.vibrate) navigator.vibrate(35);
+      clearTimeout(hanko._t); hanko._t = setTimeout(() => { $('hanko').hidden = true; }, 650);
+    }
+
+    function tapStamp(el) {
+      if (!el || !el.classList || el.classList.contains('on')) return;
+      const cid = el.getAttribute('data-c');
+      requestClaim();
+      el.classList.remove('wait'); el.classList.add('on', 'pop'); el.textContent = '✓'; el.onclick = null;
+      tapped[cid] = (tapped[cid] || 0) + 1;
+      hanko(NAMES()[cid] || '');
+      const left = Math.max(0, Number($('claim-num').textContent) - 1);
+      $('claim-num').textContent = left;
+      if (document.querySelectorAll && document.querySelectorAll('.st.wait').length === 0) finishClaim();
+      else if (!document.querySelectorAll && left === 0) finishClaim();
+    }
+
+    async function claim() {   // 「まとめて受け取る」
+      $('claim-btn').disabled = true;
+      const cells = document.querySelectorAll ? Array.from(document.querySelectorAll('.st.wait')) : [];
+      if (!cells.length) { requestClaim(); return finishClaim(); }
+      cells.forEach((el, i) => setTimeout(() => tapStamp(el), i * 380));
+    }
+
+    async function finishClaim() {
+      const data = await requestClaim();
+      if (!data || !data.ok && !demoMode) { fail('受け取りに失敗しました。時間をおいて、もう一度開いてください。'); return; }
+      const names = NAMES();
+      const claimed = data.claimed || {};
+      gotSummary = Object.keys(claimed).length
+        ? '✅ 今日受け取ったスタンプ：' + Object.entries(claimed).map(([k, n]) => `${names[k] || k} ${n}${k === 'weekly_v1' ? '週' : '個'}`).join('・') : '';
+      justClaimed = {};   // ハンコはタップのときに押し済みなので、描き直しではアニメーションしない
+      last = data; claimPromise = null; tapped = {};
+      setTimeout(() => {
+        render(data);
+        const reached = (data.cards || []).find(c => (before[c.id] || {}).pendingReward && (c.rewards || []).length > ((before[c.id] || {}).rewards || []).length);
+        if (reached) {
+          const r = reached.rewards[reached.rewards.length - 1];
+          $('cel-title').textContent = `${reached.name} 達成！`;
+          $('cel-body').innerHTML = r.status === '付与済み' ? `Teachポイント <b>+${r.yen}pt</b> をお送りしました。`
+            : `特典：${md(r.expire) ? md(r.expire) + 'までに' : ''}アプリで予約した授業1回分の授業料をお返しします（60分を超える授業は60分ぶん）。お手続きは不要です。`;
+          $('celebrate').hidden = false;
+        }
+      }, 700);
     }
 
     // ---------- デモ（?demo=0〜3。LINE・GASにはつながない） ----------
@@ -264,7 +320,7 @@
         cards: [
           Object.assign({ id: 'starter_v1', name: 'スタートカード', goal: 2,
             description: '初回（無料）のあと30日以内に有料授業2回で、次の授業1回分の授業料をお返し（60分ぶんまで）' }, starter),
-          { id: 'weekly_v1', name: '毎週チャレンジ', goal: 4, progress: 2, claimed: 1, claimable: 1, finished: false,
+          { id: 'weekly_v1', name: '毎週チャレンジ', goal: 4, progress: 3, claimed: 1, claimable: 2, finished: false,
             description: '4週つづけて授業を受けると Teachポイント 100pt。週が空いたらやり直し', rewards: [] },
           { id: 'referral', name: '友達紹介', goal: null, progress: 1, finished: false,
             description: '紹介したお友だちが初回の授業を受けると、次の授業1回分が無料', rewards: [] },
