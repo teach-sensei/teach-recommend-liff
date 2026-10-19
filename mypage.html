@@ -39,6 +39,7 @@
     .chip.ok { background: var(--ok-soft); color: var(--ok); }
     .chip.gray { background: #F1F2F4; color: var(--sub); }
     .section { font-size: 13px; font-weight: 700; color: var(--sub); margin: 8px 2px 0; }
+    #cards .section { margin: 14px 2px 8px; } #cards .section:first-child { margin-top: 2px; }
 
     /* 受け取りの案内 */
     .claim { background: linear-gradient(135deg, #E57A00, #F4A23B); color: #fff; border-radius: 16px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
@@ -361,6 +362,7 @@
       clearTimeout(showTip._t); showTip._t = setTimeout(() => { t.hidden = true; }, 2200);
     }
 
+    const SPECIAL_CARDS = ['starter_v1'];   // すごろくのスタンプではなく、特典（授業料のお返し）が直接もらえる別枠のカード
     // 返金の説明（返金担当のやり方に合わせて直す：返金先と日数）
     const REFUND_HOW = 'お支払いのカードへ・数日〜1週間ほど';
     const NO_ACTION = '何もしなくて大丈夫です';
@@ -404,7 +406,12 @@
         if (!c.finished) return c.id === 'starter_v1' ? 0 : 2;
         return r && ['予定', 'リクエスト中', '返金待ち'].includes(r.status) ? 1 : 5; };   // 使えるチケットがある達成済みカードは上、使い終わったら下
       const ordered = cards.slice().sort((a, b) => weight(a) - weight(b));
-      $('cards').innerHTML = cards.length ? ordered.map(cardHtml).join('<div style="height:12px"></div>')
+      // スタートカード（はじめての方の特典・すごろくとは別枠）と、すごろくのスタンプをためるチャレンジを分けて出す
+      const OTHER = ['referral'];
+      const special = ordered.filter(c => SPECIAL_CARDS.includes(c.id)), other = ordered.filter(c => OTHER.includes(c.id));
+      const chal = ordered.filter(c => !SPECIAL_CARDS.includes(c.id) && !OTHER.includes(c.id));
+      const block = (title, list) => list.length ? `<div class="section">${title}</div>` + list.map(cardHtml).join('<div style="height:12px"></div>') : '';
+      $('cards').innerHTML = cards.length ? block('🔰 はじめての方の特典', special) + block('🎲 すごろくのスタンプをためるチャレンジ', chal) + block('🤝 友達紹介', other)
         : '<div class="card empty">いま参加中のチャレンジはありません。<br>授業を受けると、ここにカードが表示されます。</div>';
 
       // 特典タブ
@@ -595,9 +602,11 @@
 
     function claim() {   // 「まとめて」
       $('claim-btn').disabled = true;
-      const cells = document.querySelectorAll ? Array.from(document.querySelectorAll('.st.wait')) : [];
-      if (!cells.length) { requestClaim(); return finishClaim(); }
-      cells.forEach((el, i) => setTimeout(() => tapStamp(el), i * 380));
+      const first = document.querySelector ? document.querySelector('.st.wait') : null;
+      if (!first) { requestClaim(); return finishClaim(); }
+      // 1個ずつ押す。途中で達成の描き直しが入っても、そのとき画面にある次のスタンプを押す
+      const step = () => { const el = document.querySelector('.st.wait'); if (!el) return; tapStamp(el); setTimeout(step, 380); };
+      step();
     }
 
     async function finishClaim() {
@@ -617,7 +626,7 @@
     }
 
     // ---------- デモ（?demo=0〜5。LINE・GASにはつながない） ----------
-    //   0 初回のあと / 1 有料1回目 / 2 受け取ると達成 / 3 返金済み / 4 予約が確定 / 5 リクエスト中 / unlinked 未紐付け
+    //   0 初回のあと / 1 有料1回目 / 2 受け取ると達成 / 3 返金済み / 4 予約が確定 / 5 リクエスト中 / 6 毎週4週目 / unlinked 未紐付け
     function demoData(i) {
       const starter = [
         { progress: 0, finished: false, rewards: [] },
@@ -626,7 +635,7 @@
         { progress: 2, finished: true, rewards: [{ status: '返金済み', reachedAt: '2026-11-16', lessonStart: '2026-11-20 17:00:00', yen: 2640 }] },
         { progress: 2, finished: true, claimed: 2, claimable: 0, rewards: [{ status: '返金待ち', reachedAt: '2026-11-16', expire: '2026-12-16', lessonStart: '2026-11-22 17:00:00', yen: 2640 }] },
         { progress: 2, finished: true, claimed: 2, claimable: 0, rewards: [{ status: 'リクエスト中', reachedAt: '2026-11-16', expire: '2026-12-16', lessonStart: '2026-11-22 17:00:00', yen: 2640 }] },
-      ][i];
+      ][i === 6 ? 3 : i];
       if (starter.progress > 0 && i < 3) { starter.claimed = starter.progress - 1; starter.claimable = 1;
         if (starter.finished) { starter._rewardsAfter = starter.rewards; starter.rewards = []; starter.finished = false; starter.pendingReward = true; } }
       return {
@@ -636,8 +645,10 @@
         cards: [
           Object.assign({ id: 'starter_v1', name: 'スタートカード', goal: 2, deadline: '2026-11-30 17:00:00',
             description: '初回（無料）のあと30日以内に有料授業2回で、次の授業1回分の授業料をお返し（60分ぶんまで）' }, starter),
-          { id: 'weekly_v1', name: '毎週チャレンジ', goal: 4, progress: 3, claimed: 1, claimable: 2, finished: false,
-            description: '4週つづけて授業を受けると、交換に使えるスタンプ+5', rewards: [{ status: '付与済み', reachedAt: '2026-10-26', yen: 5 }] },
+          i === 6 ? { id: 'weekly_v1', name: '毎週チャレンジ', goal: 4, progress: 4, claimed: 3, claimable: 1, finished: false, pendingReward: true, givesStamps: 5,
+            description: '4週つづけて授業を受けると、すごろくが5マス進む', rewards: [], _rewardsAfter: [{ status: '付与済み', reachedAt: '2026-12-14', yen: 5 }] }
+          : { id: 'weekly_v1', name: '毎週チャレンジ', goal: 4, progress: 3, claimed: 1, claimable: 2, finished: false, givesStamps: 5,
+            description: '4週つづけて授業を受けると、すごろくが5マス進む', rewards: [{ status: '付与済み', reachedAt: '2026-10-26', yen: 5 }] },
           { id: 'referral', name: '友達紹介', goal: null, progress: 1, finished: false,
             description: '紹介したお友だちが初回の授業を受けると、次の授業1回分が無料', rewards: [] },
         ],
@@ -657,10 +668,12 @@
       if (q.has('demo') || LIFF_ID.indexOf('REPLACE') === 0) {   // 設定が未入力のうちはデモ表示
         $('demo-note').hidden = false;
         demoMode = true;
-        const i = Math.min(5, Math.max(0, Number(q.get('demo')) || 0));
+        const i = Math.min(6, Math.max(0, Number(q.get('demo')) || 0));
         last = q.get('demo') === 'unlinked' ? { linked: false } : demoData(i);
         if (q.get('pts') && last.linked) last.points = Number(q.get('pts')) || 0;   // すごろくの位置を試す（例 &pts=23）
         render(last);
+        // 説明用のスクショ：&act=claim で受け取りまで進める（claimed は達成のお知らせを閉じた後）
+        if (q.get('act')) setTimeout(() => { claim(); if (q.get('act') === 'claimed') setTimeout(() => { $('celebrate').hidden = true; }, 4000); }, 300);
         return;
       }
       try {
