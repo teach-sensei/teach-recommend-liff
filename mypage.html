@@ -2,129 +2,205 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Teach マイページ</title>
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     :root {
-      --bg: #F2F3F5; --card: #FFFFFF; --ink: #1F2328; --sub: #6B7280; --line: #E5E7EB;
-      --accent: #E07B00; --accent-soft: #FFF4E5; --ok: #1E8E5A; --ok-soft: #E7F6EE;
-      --gray-soft: #F3F4F6; --error: #D33;
+      --bg: #F5F6F8; --card: #FFFFFF; --ink: #1D2129; --sub: #6E7681; --faint: #A3AAB3; --line: #ECEEF1;
+      --accent: #E57A00; --accent-ink: #B65F00; --accent-soft: #FFF3E3;
+      --ok: #1A8754; --ok-soft: #E6F4EC; --blue: #3157D5; --blue-soft: #EDF1FD; --red: #D92D20;
+      --shadow: 0 1px 2px rgba(16,24,40,.04), 0 2px 8px rgba(16,24,40,.05);
     }
-    * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--ink);
-           font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; line-height: 1.6; }
-    .page { max-width: 480px; margin: 0 auto; padding: 14px 14px 32px; display: grid; gap: 12px; }
-    .hello { font-size: 13px; color: var(--sub); }
-    .box { background: var(--card); border-radius: 14px; padding: 14px; }
-    .points { background: linear-gradient(135deg, #3157D5, #5B7BEA); color: #fff; }
-    .points .num { font-size: 32px; font-weight: 700; }
-    .points .num span { font-size: 15px; }
-    .points small { opacity: .85; font-size: 12px; }
-    .points .ex { margin-top: 10px; background: rgba(255,255,255,.16); border-radius: 10px; padding: 8px 10px; font-size: 12px; }
-    h3 { margin: 4px 2px 0; font-size: 14px; }
-    .camp { display: grid; gap: 8px; }
-    .camp .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-    .camp .name { font-weight: 700; font-size: 15px; }
-    .tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
-    .tag.ok { background: var(--ok-soft); color: var(--ok); }
-    .tag.gray { background: var(--gray-soft); color: var(--sub); }
-    .stamps { display: flex; gap: 10px; flex-wrap: wrap; }
-    .st { width: 44px; height: 44px; border-radius: 50%; border: 2px dashed #F2C38A; display: grid; place-items: center; font-size: 18px; color: #F2C38A; }
-    .st.on { border: 0; background: var(--accent); color: #fff; }
-    .bar { height: 8px; background: var(--gray-soft); border-radius: 99px; overflow: hidden; }
-    .bar i { display: block; height: 100%; background: var(--accent); }
-    .desc { font-size: 12px; color: var(--sub); }
-    .reward { font-size: 12px; background: var(--accent-soft); border-radius: 8px; padding: 8px 10px; }
-    .reward.ok { background: var(--ok-soft); }
-    .reward.gray { background: var(--gray-soft); color: var(--sub); }
-    .li { display: flex; justify-content: space-between; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
-    .li:last-child { border-bottom: 0; }
-    .li .s { color: var(--sub); font-size: 11px; }
-    .plus { color: #3157D5; font-weight: 600; white-space: nowrap; }
-    .cta { display: block; text-align: center; background: var(--accent); color: #fff; border-radius: 10px; padding: 11px; font-weight: 700; text-decoration: none; font-size: 14px; }
-    .cta.sub { background: #fff; color: var(--accent); border: 1px solid var(--accent); }
-    .foot { font-size: 11px; color: var(--sub); text-align: center; }
-    .msg { text-align: center; padding: 40px 16px; color: var(--sub); font-size: 14px; }
-    .msg.error { color: var(--error); }
-    .demo { font-size: 11px; background: #FFFBE6; border: 1px solid #F5DC8A; border-radius: 8px; padding: 6px 10px; }
-    .st.wait { border: 2px solid var(--accent); color: var(--accent); background: #FFF; animation: glow 1.4s ease-in-out infinite; font-size: 11px; font-weight: 700; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { margin: 0; background: var(--bg); color: var(--ink); line-height: 1.55;
+           font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; }
+    [hidden] { display: none !important; }
+    .wrap { max-width: 480px; margin: 0 auto; padding: 0 16px calc(96px + env(safe-area-inset-bottom)); }
+
+    /* 上部 */
+    .top { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 14px 0 10px; }
+    .top-row { display: flex; justify-content: space-between; align-items: center; }
+    .top h1 { margin: 0; font-size: 19px; letter-spacing: .02em; }
+    .pt-pill { display: inline-flex; align-items: center; gap: 4px; background: var(--blue-soft); color: var(--blue);
+               border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 700; border: 0; }
+    .tabs { margin-top: 12px; display: grid; grid-template-columns: repeat(3, 1fr); background: #E9EBEF; border-radius: 12px; padding: 3px; }
+    .tab { border: 0; background: transparent; padding: 8px 0; border-radius: 9px; font-size: 14px; font-weight: 700; color: var(--sub); position: relative; }
+    .tab.on { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    .badge { position: absolute; top: 3px; right: 14%; min-width: 17px; height: 17px; border-radius: 9px; background: var(--red); color: #fff;
+             font-size: 10px; line-height: 17px; padding: 0 5px; }
+
+    .pane { display: grid; gap: 12px; padding-top: 4px; }
+    .card { background: var(--card); border-radius: 16px; padding: 16px; box-shadow: var(--shadow); }
+    .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .title { font-weight: 800; font-size: 16px; }
+    .muted { font-size: 12px; color: var(--sub); }
+    .chip { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); white-space: nowrap; }
+    .chip.ok { background: var(--ok-soft); color: var(--ok); }
+    .chip.gray { background: #F1F2F4; color: var(--sub); }
+    .section { font-size: 13px; font-weight: 700; color: var(--sub); margin: 8px 2px 0; }
+
+    /* 受け取りの案内 */
+    .claim { background: linear-gradient(135deg, #E57A00, #F4A23B); color: #fff; border-radius: 16px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
+    .claim .ic { font-size: 28px; }
+    .claim b { font-size: 15px; }
+    .claim .s { font-size: 12px; opacity: .95; }
+    .claim button { margin-left: auto; border: 0; background: #fff; color: var(--accent-ink); border-radius: 999px; padding: 8px 12px; font-size: 13px; font-weight: 800; white-space: nowrap; }
+
+    /* スタンプ */
+    .stamps { display: flex; gap: 12px; flex-wrap: wrap; margin: 14px 0 10px; }
+    .st { width: 46px; height: 46px; border-radius: 50%; border: 2px dashed #E9C99D; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #D9B27C; }
+    .st.big { width: 64px; height: 64px; font-size: 15px; }
+    .st.on { border: 0; background: var(--accent); color: #fff; font-size: 20px; }
+    .st.big.on { font-size: 26px; }
+    .st.wait { border: 2px solid var(--accent); color: var(--accent); background: #fff; cursor: pointer; animation: glow 1.4s ease-in-out infinite; }
     .st.pop { animation: pop .6s ease-out; }
-    @keyframes glow { 0%,100% { box-shadow: 0 0 0 0 rgba(224,123,0,.45); } 50% { box-shadow: 0 0 0 8px rgba(224,123,0,0); } }
-    @keyframes pop { 0% { transform: scale(.3) rotate(-25deg); opacity: .2; } 60% { transform: scale(1.25) rotate(8deg); opacity: 1; } 100% { transform: scale(1) rotate(0); } }
-    .bar i.wait { background: repeating-linear-gradient(45deg, #F2C38A, #F2C38A 6px, #FBE3C4 6px, #FBE3C4 12px); }
-    .bar { display: flex; }
-    .claim { background: linear-gradient(135deg, #E07B00, #F2A33A); color: #fff; border-radius: 14px; padding: 14px; display: grid; gap: 8px; text-align: center; }
-    .claim b { font-size: 16px; }
-    .claim button { border: 0; border-radius: 10px; padding: 12px; font-size: 15px; font-weight: 700; background: #fff; color: var(--accent); }
-    .claim button:disabled { opacity: .6; }
-    .hint { font-size: 12px; color: var(--accent); font-weight: 700; }
-    .celebrate { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: grid; place-items: center; z-index: 10; padding: 24px; }
-    .celebrate .in { background: #fff; border-radius: 16px; padding: 22px 18px; max-width: 360px; text-align: center; display: grid; gap: 10px; animation: pop .5s ease-out; }
-    .celebrate .big { font-size: 40px; }
-    .celebrate button { border: 0; border-radius: 10px; padding: 11px; background: var(--accent); color: #fff; font-weight: 700; font-size: 14px; }
-    .st.wait { cursor: pointer; }
+    @keyframes glow { 0%,100% { box-shadow: 0 0 0 0 rgba(229,122,0,.45); } 50% { box-shadow: 0 0 0 9px rgba(229,122,0,0); } }
+    @keyframes pop { 0% { transform: scale(.3) rotate(-25deg); opacity: .2; } 60% { transform: scale(1.2) rotate(8deg); opacity: 1; } 100% { transform: scale(1); } }
+    .cell { display: grid; justify-items: center; gap: 4px; }
+    .cell .cap { font-size: 11px; color: var(--sub); font-weight: 700; }
+    .st.pre { background: #F3C98F; color: #fff; border: 0; }
+    .st.gift { border: 2px dashed #E9C99D; font-size: 24px; filter: grayscale(1); opacity: .55; }
+    .st.gift.on { filter: none; opacity: 1; border: 0; background: var(--accent-soft); }
+    .next { margin-top: 12px; background: var(--blue-soft); color: var(--blue); border-radius: 12px; padding: 10px 12px; font-size: 13px; font-weight: 700; }
+    details.qa { background: #fff; border-radius: 16px; padding: 4px 16px; box-shadow: var(--shadow); }
+    details.qa summary { padding: 12px 0; font-size: 14px; font-weight: 700; cursor: pointer; }
+    details.qa .q { font-size: 13px; font-weight: 700; margin-top: 10px; }
+    details.qa .a { font-size: 12px; color: var(--sub); margin-bottom: 4px; }
+    .count { font-size: 13px; color: var(--sub); }
+    .count b { font-size: 22px; color: var(--ink); }
+    .hint { font-size: 12px; color: var(--accent-ink); font-weight: 700; margin-top: 6px; }
+    .lead { font-size: 17px; font-weight: 800; margin-top: 10px; line-height: 1.45; }
+
+    /* 特典チケット */
+    .ticket { margin-top: 12px; border: 2px dashed var(--accent); border-radius: 14px; padding: 14px; background: #FFFCF7; text-align: center; display: grid; gap: 4px; }
+    .ticket .lab { font-size: 12px; color: var(--accent-ink); font-weight: 800; }
+    .ticket .when { font-size: 21px; font-weight: 800; }
+    .ticket .sub { font-size: 12px; color: var(--sub); }
+    .ticket.ok { border-color: var(--ok); background: var(--ok-soft); }
+    .ticket.ok .lab { color: var(--ok); }
+    .ticket.gray { border-color: #D5D9DE; background: #F7F8F9; }
+    .ticket.gray .lab { color: var(--sub); }
+    .btn { display: block; width: 100%; text-align: center; border: 0; border-radius: 12px; padding: 13px; font-size: 15px; font-weight: 800; text-decoration: none; }
+    .btn.primary { background: var(--accent); color: #fff; }
+    .btn.ghost { background: #fff; color: var(--accent-ink); border: 1px solid var(--accent); }
+    .ticket + .btn { margin-top: 10px; }
+
+    /* ポイント */
+    .balance { background: linear-gradient(135deg, #3157D5, #5A7BE8); color: #fff; }
+    .balance .num { font-size: 36px; font-weight: 800; letter-spacing: .01em; }
+    .balance .num span { font-size: 16px; font-weight: 700; margin-left: 2px; }
+    .meter { height: 8px; background: rgba(255,255,255,.25); border-radius: 99px; overflow: hidden; margin: 10px 0 6px; }
+    .meter i { display: block; height: 100%; background: #fff; border-radius: 99px; }
+    .menu-li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .menu-li:last-child { border-bottom: 0; }
+    .menu-li .pt { font-weight: 800; color: var(--blue); white-space: nowrap; }
+    .menu-li button { border: 0; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; background: var(--blue-soft); color: var(--blue); white-space: nowrap; }
+    .menu-li button:disabled { opacity: .6; }
+    .li { display: flex; justify-content: space-between; gap: 8px; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+    .li:last-child { border-bottom: 0; }
+    .li .d { color: var(--faint); font-size: 11px; }
+    .li .v { font-weight: 700; color: var(--blue); white-space: nowrap; }
+    .empty { text-align: center; color: var(--sub); font-size: 13px; padding: 18px 8px; }
+
+    /* 下の固定ボタン */
+    .dock { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(245,246,248,.94); backdrop-filter: blur(6px);
+            padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); z-index: 6; }
+    .dock .btn { max-width: 448px; margin: 0 auto; }
+
+    /* 演出 */
     .hanko { position: fixed; inset: 0; display: grid; place-items: center; z-index: 20; pointer-events: none; }
-    .hanko .seal { width: 150px; height: 150px; border-radius: 50%; border: 8px solid #D92D20; color: #D92D20; display: grid; place-items: center;
-                   font-size: 34px; font-weight: 800; background: rgba(255,255,255,.85); transform: rotate(-12deg); animation: slam .45s cubic-bezier(.2,1.6,.4,1); }
+    .hanko .seal { width: 150px; height: 150px; border-radius: 50%; border: 8px solid var(--red); color: var(--red); display: grid; place-items: center;
+                   font-size: 34px; font-weight: 900; background: rgba(255,255,255,.9); transform: rotate(-12deg); animation: slam .45s cubic-bezier(.2,1.6,.4,1); }
     .hanko .seal small { display: block; font-size: 13px; font-weight: 700; text-align: center; }
     @keyframes slam { 0% { transform: scale(2.6) rotate(-25deg); opacity: 0; } 70% { transform: scale(.92) rotate(-10deg); opacity: 1; } 100% { transform: scale(1) rotate(-12deg); } }
-    .got { background: var(--ok-soft); color: var(--ok); border-radius: 12px; padding: 10px 12px; font-size: 13px; font-weight: 700; }
-    .menu-li { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: rgba(255,255,255,.16); border-radius: 10px; padding: 8px 10px; font-size: 12px; margin-top: 6px; }
-    .menu-li button { border: 0; border-radius: 8px; padding: 6px 10px; font-size: 11px; font-weight: 700; background: #fff; color: #3157D5; }
-    .menu-li button:disabled { opacity: .55; }
-    [hidden] { display: none !important; }
+    .modal { position: fixed; inset: 0; background: rgba(16,24,40,.5); display: grid; place-items: center; z-index: 30; padding: 24px; }
+    .modal .in { background: #fff; border-radius: 20px; padding: 24px 20px 18px; max-width: 360px; width: 100%; text-align: center; display: grid; gap: 10px; animation: pop .45s ease-out; }
+    .modal .big { font-size: 44px; }
+    .toast { background: var(--ok-soft); color: var(--ok); border-radius: 12px; padding: 10px 12px; font-size: 13px; font-weight: 700; }
+    .msg { text-align: center; padding: 60px 16px; color: var(--sub); font-size: 14px; }
+    .msg.error { color: var(--red); }
+    .demo { font-size: 11px; background: #FFFBE6; border: 1px solid #F5DC8A; border-radius: 8px; padding: 6px 10px; margin-top: 10px; }
   </style>
 </head>
 <body>
-  <div class="page">
+  <div class="wrap">
     <div id="demo-note" class="demo" hidden>デモ表示（サンプルデータ・実在の家庭ではありません）</div>
     <div id="loading" class="msg">読み込み中…</div>
     <div id="error" class="msg error" hidden></div>
 
     <!-- 未紐付け -->
-    <div id="unlinked" class="box camp" hidden>
-      <div class="name">LINEとTeachをつなぐと見られます</div>
-      <div class="desc">マイページでは、スタートカードや毎週チャレンジの進み具合、特典の状態を確認できます。<br>
-        Teachに登録したメールアドレスで、LINEとTeachをつないでください（1分ほど）。</div>
-      <a id="link-btn" class="cta" href="#">LINEとTeachをつなぐ</a>
+    <div id="unlinked" hidden>
+      <div class="top"><div class="top-row"><h1>マイページ</h1></div></div>
+      <div class="card" style="display:grid;gap:10px">
+        <div class="title">LINEとTeachをつなぐと見られます</div>
+        <div class="muted">スタートカードや毎週チャレンジの進み具合、特典の状態をここで確認できます。Teachに登録したメールアドレスで、LINEとTeachをつないでください（1分ほど）。</div>
+        <a id="link-btn" class="btn primary" href="#">LINEとTeachをつなぐ</a>
+      </div>
     </div>
 
-    <!-- マイページ本体 -->
+    <!-- 本体 -->
     <div id="main" hidden>
-      <div class="page" style="padding:0">
+      <div class="top">
+        <div class="top-row">
+          <h1>マイページ</h1>
+          <button class="pt-pill" type="button" data-go="points">🪙 <span id="pt-pill">0</span>pt</button>
+        </div>
+        <div class="tabs" role="tablist">
+          <button class="tab on" type="button" data-tab="cards">カード<span class="badge" id="badge-cards" hidden></span></button>
+          <button class="tab" type="button" data-tab="rewards">特典<span class="badge" id="badge-rewards" hidden></span></button>
+          <button class="tab" type="button" data-tab="points">ポイント</button>
+        </div>
+      </div>
+
+      <div class="pane" id="pane-cards">
+        <div class="toast" id="got-box" hidden></div>
         <div class="claim" id="claim-box" hidden>
-          <div>🎁 スタンプが <b id="claim-num">0</b> 個 届いています</div>
-          <div style="font-size:13px">光っているスタンプを<b>タップして受け取ろう</b></div>
-          <button id="claim-btn" type="button" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,.7);padding:8px;font-size:13px">まとめて受け取る</button>
+          <div class="ic">🎁</div>
+          <div><b>スタンプが <span id="claim-num">0</span> 個 届いています</b><div class="s">光っているスタンプを1つずつタップしても受け取れます</div></div>
+          <button id="claim-btn" type="button">受け取る</button>
         </div>
-        <div class="got" id="got-box" hidden></div>
-        <div class="box points" id="points-box" hidden>
-          <small>Teachポイント</small>
-          <div class="num"><span id="pt-num">0</span><span> pt</span></div>
-          <div class="ex" id="pt-ex" hidden></div>
-          <div id="pt-menu"></div>
+        <div id="cards"></div>
+        <details class="qa">
+          <summary>くわしいルール</summary>
+          <div class="q">スタンプはいつ届く？</div>
+          <div class="a">授業を受けた翌朝に届きます。予約しただけでは届きません。受け取らなくても、特典の対象からは外れません。</div>
+          <div class="q">「次の授業が無料」のお金はどうなる？</div>
+          <div class="a">授業料はいつも通りお支払いください。その授業が終わったあと、授業料をお返しします（60分を超える授業は60分ぶん）。お手続きは不要です。</div>
+          <div class="q">毎週チャレンジの「週」は？</div>
+          <div class="a">月曜〜日曜で数えます。1週だけ休んでも続いたことになります（おやすみ週・4週に1回）。2週休むと1週目からやり直しです。</div>
+          <div class="q">ポイントは何に使える？</div>
+          <div class="a">「ポイント」タブの交換メニューから交換できます（準備中）。</div>
+        </details>
+      </div>
+
+      <div class="pane" id="pane-rewards" hidden>
+        <div id="rewards"></div>
+      </div>
+
+      <div class="pane" id="pane-points" hidden>
+        <div class="card balance">
+          <div class="muted" style="color:rgba(255,255,255,.85)">Teachポイント</div>
+          <div class="num"><span id="pt-num" style="font-size:36px;margin:0">0</span><span>pt</span></div>
+          <div id="pt-next"></div>
         </div>
-
-        <h3>参加中のチャレンジ</h3>
-        <div id="cards" style="display:grid;gap:12px"></div>
-
-        <h3>ポイント・特典の履歴</h3>
-        <div class="box" id="hist"></div>
-
-        <a id="book-btn" class="cta" href="#">次の授業を予約する</a>
-        <div class="foot">数は毎朝更新されます／ご不明点はトークでお気軽にご相談ください</div>
+        <div class="section">交換できるもの</div>
+        <div class="card" id="pt-menu"></div>
+        <div class="section">ポイントとスタンプの履歴</div>
+        <div class="card" id="hist"></div>
       </div>
     </div>
   </div>
 
+  <div class="dock" id="dock" hidden><a id="book-btn" class="btn primary" href="#">次の授業を予約する</a></div>
   <div class="hanko" id="hanko" hidden><div class="seal"><div>受取<small id="hanko-sub"></small></div></div></div>
-  <div class="celebrate" id="celebrate" hidden>
+  <div class="modal" id="celebrate" hidden>
     <div class="in">
       <div class="big">🎉</div>
-      <div style="font-weight:700;font-size:17px" id="cel-title"></div>
-      <div class="desc" id="cel-body" style="font-size:13px"></div>
-      <button type="button" id="cel-close">閉じる</button>
+      <div style="font-weight:800;font-size:18px" id="cel-title"></div>
+      <div class="muted" id="cel-body" style="font-size:13px"></div>
+      <a class="btn primary" id="cel-book" href="#">特典を使って次の授業を予約する</a>
+      <button type="button" class="btn ghost" id="cel-close">あとで</button>
     </div>
   </div>
 
@@ -137,99 +213,158 @@
 
     // 施策ごとの見せ方（施策を足したらここに1行）
     const CAMPAIGN_VIEW = {
-      starter_v1: { icon: '🎫', style: 'stamps' },
-      weekly_v1:  { icon: '📅', style: 'stamps', unitLabel: '週', cellLabel: k => `${k + 1}週` },
-      referral:   { icon: '🤝', style: 'count' },
+      starter_v1: { icon: '🎫', big: true, unit: '回', endowed: true, gift: true, labels: ['1回目', '2回目', '3回目'],
+        headline: (c, got) => c.pendingReward ? 'スタンプを受け取ると達成！' : `あと${c.goal - got}回で、次の授業が無料！`,
+        sub: (c, got) => (c.deadline ? `${dayw(c.deadline)}まで` : '') + (got === 0 ? '　無料体験で1こ目のスタンプが押されました' : ''),
+        after: () => '次は「毎週チャレンジ」。毎週1回の授業が4週つづくと100ポイント' },
+      weekly_v1:  { icon: '📅', unit: '週', labels: ['1週', '2週', '3週', '4週'],
+        headline: (c, got) => c.pendingReward ? 'スタンプを受け取ると達成！' : (got === 0 ? '毎週1回の授業で、4週つづくと100ポイント' : `あと${c.goal - got}週つづくと100ポイント`),
+        sub: c => c.restUsed ? 'おやすみ週を使いました。連続はそのままです' : '週は月〜日で数えます。1週だけなら休んでもOK（おやすみ週）' },
+      referral:   { icon: '🤝', compact: true },
     };
+    // 「11/18（火）」の形
+    const dayw = s => { const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/); if (!m) return '';
+      return `${+m[2]}/${+m[3]}（${'日月火水木金土'[new Date(+m[1], +m[2] - 1, +m[3]).getDay()]}）`; };
 
     const $ = id => document.getElementById(id);
     const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const md = s => { const m = String(s || '').match(/^\d{4}-(\d{2})-(\d{2})/); return m ? `${+m[1]}/${+m[2]}` : ''; };
     const yen = n => (Number(n) || 0).toLocaleString('ja-JP') + '円';
+    const when = s => { const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/); if (!m) return md(s);
+      const w = '日月火水木金土'[new Date(+m[1], +m[2] - 1, +m[3]).getDay()]; return `${+m[2]}/${+m[3]}（${w}）${m[4]}:${m[5]}`; };
 
-    function show(id) { ['loading', 'error', 'unlinked', 'main'].forEach(k => $(k).hidden = (k !== id)); }
+    function show(id) { ['loading', 'error', 'unlinked', 'main'].forEach(k => $(k).hidden = (k !== id)); $('dock').hidden = (id !== 'main'); }
     function fail(msg) { $('error').textContent = msg; show('error'); }
+
+    // ---------- タブ ----------
+    let currentTab = 'cards';
+    function setTab(t) {
+      currentTab = t;
+      ['cards', 'rewards', 'points'].forEach(k => { $('pane-' + k).hidden = (k !== t); });
+      document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.getAttribute('data-tab') === t));
+      window.scrollTo && window.scrollTo(0, 0);
+    }
 
     // ---------- 描画 ----------
     function render(data) {
-      $('link-btn').href = LINK_URL;
-      $('book-btn').href = BOOK_URL;
+      $('link-btn').href = LINK_URL; $('book-btn').href = BOOK_URL; $('cel-book').href = BOOK_URL;
       if (!data.linked) { show('unlinked'); return; }
-
-      // Teachポイント
-      const menu = (data.menu || []).slice().sort((a, b) => a['必要pt'] - b['必要pt']);
-      if (data.points > 0 || menu.length) {
-        $('points-box').hidden = false;
-        $('pt-num').textContent = (data.points || 0).toLocaleString('ja-JP');
-        const next = menu.find(m => m['必要pt'] > data.points);
-        const can = menu.filter(m => m['必要pt'] <= data.points);
-        $('pt-menu').innerHTML = menu.map(m => `<div class="menu-li"><div><b>${m['必要pt']}pt</b>　${esc(m['名前'])}</div>
-          <button type="button" disabled>${m['必要pt'] <= data.points ? '交換する（準備中）' : `あと${m['必要pt'] - data.points}pt`}</button></div>`).join('');
-        if (can.length) { $('pt-ex').hidden = false; $('pt-ex').innerHTML = `「${esc(can[can.length - 1]['名前'])}」と交換できます。トークで「ポイント交換」とお送りください`; }
-        else if (next) { $('pt-ex').hidden = false; $('pt-ex').innerHTML = `あと <b>${next['必要pt'] - data.points}pt</b> で「${esc(next['名前'])}」と交換できます`; }
-      }
-
-      // 受け取り待ち
-      const waiting = (data.cards || []).reduce((n, c) => n + (c.claimable || 0), 0);
-      $('claim-box').hidden = waiting === 0;
-      $('claim-num').textContent = waiting;
-      $('claim-btn').disabled = false;
-      $('got-box').hidden = !gotSummary;
-      $('got-box').innerHTML = gotSummary;
-
-      // カード
       const cards = data.cards || [];
-      $('cards').innerHTML = cards.length ? cards.map(cardHtml).join('')
-        : '<div class="box desc">いま参加中のチャレンジはありません。授業を受けると、ここにカードが表示されます。</div>';
 
-      // 履歴
+      // カードタブ
+      const waiting = cards.reduce((n, c) => n + (c.claimable || 0), 0);
+      $('claim-box').hidden = waiting === 0; $('claim-num').textContent = waiting; $('claim-btn').disabled = false;
+      $('badge-cards').hidden = waiting === 0; $('badge-cards').textContent = waiting;
+      $('got-box').hidden = !gotSummary; $('got-box').innerHTML = gotSummary;
+      const weight = c => { const r = (c.rewards || []).slice(-1)[0];
+        if (c.id === 'referral') return 9;
+        if (!c.finished) return c.id === 'starter_v1' ? 0 : 2;
+        return r && ['予定', 'リクエスト中', '返金待ち'].includes(r.status) ? 1 : 5; };   // 使えるチケットがある達成済みカードは上、使い終わったら下
+      const ordered = cards.slice().sort((a, b) => weight(a) - weight(b));
+      $('cards').innerHTML = cards.length ? ordered.map(cardHtml).join('<div style="height:12px"></div>')
+        : '<div class="card empty">いま参加中のチャレンジはありません。<br>授業を受けると、ここにカードが表示されます。</div>';
+
+      // 特典タブ
+      const all = [];
+      cards.forEach(c => (c.rewards || []).forEach(r => all.push({ c, r })));
+      const ref = cards.find(c => c.id === 'referral');
+      const active = all.filter(x => ['予定', 'リクエスト中', '返金待ち'].includes(x.r.status));
+      $('badge-rewards').hidden = active.length === 0; $('badge-rewards').textContent = active.length;
+      const order = { '返金待ち': 0, 'リクエスト中': 1, '予定': 2, '付与済み': 3, '返金済み': 4, '期限切れ': 5 };
+      const items = all.sort((a, b) => (order[a.r.status] ?? 9) - (order[b.r.status] ?? 9))
+        .map(x => `<div class="card"><div class="row"><span class="title">${CAMPAIGN_VIEW[x.c.id] ? CAMPAIGN_VIEW[x.c.id].icon : '⭐'} ${esc(x.c.name)}</span>${statusChip(x.r.status)}</div>${rewardHtml(x.r, true)}</div>`);
+      if (ref && ref.progress) items.push(`<div class="card"><div class="row"><span class="title">🤝 友達紹介</span><span class="chip ok">${ref.progress}回</span></div>
+        <div class="muted" style="margin-top:6px">紹介特典（次の授業1回無料）は、これまでどおり運営から個別にご案内します。</div></div>`);
+      $('rewards').innerHTML = items.length ? items.join('<div style="height:12px"></div>')
+        : '<div class="card empty">まだ特典はありません。<br>カードを達成すると、ここにチケットが届きます。</div>';
+
+      // ポイントタブ
+      const pts = data.points || 0;
+      $('pt-num').textContent = pts.toLocaleString('ja-JP'); $('pt-pill').textContent = pts.toLocaleString('ja-JP');
+      const menu = (data.menu || []).slice().sort((a, b) => a['必要pt'] - b['必要pt']);
+      const next = menu.find(m => m['必要pt'] > pts);
+      const first = menu[0];
+      $('pt-next').innerHTML = next ? `<div class="meter"><i style="width:${Math.min(100, Math.round(100 * pts / next['必要pt']))}%"></i></div>
+        <div style="font-size:12px">あと <b>${next['必要pt'] - pts}pt</b> で「${esc(next['名前'])}」</div>` : (menu.length ? '<div style="font-size:12px;margin-top:6px">交換できるものがあります</div>' : '');
+      $('pt-menu').innerHTML = menu.length ? menu.map(m => `<div class="menu-li"><div><div style="font-size:14px;font-weight:700">${esc(m['名前'])}</div><div class="muted">${esc(m['中身'] || '')}</div></div>
+          <div style="text-align:right"><div class="pt">${m['必要pt']}pt</div><button type="button" disabled>${m['必要pt'] <= pts ? '準備中' : `あと${m['必要pt'] - pts}pt`}</button></div></div>`).join('')
+        : '<div class="empty">交換できるものは準備中です</div>';
       const names = Object.fromEntries(cards.map(c => [c.id, c.name]));
       const hist = data.history || [];
       $('hist').innerHTML = hist.length ? hist.map(h => {
         const right = h.unit === 'pt' ? `+${h.amount}pt` : (h.campaign === 'referral' ? '特典' : `スタンプ+${h.amount}`);
         const label = (names[h.campaign] || h.campaign) + (h.memo ? `：${h.memo}` : '');
-        return `<div class="li"><div>${esc(label)}<div class="s">${md(h.at)}</div></div><div class="plus">${esc(right)}</div></div>`;
-      }).join('') : '<div class="desc">まだ履歴はありません</div>';
+        return `<div class="li"><div>${esc(label)}<div class="d">${md(h.at)}</div></div><div class="v">${esc(right)}</div></div>`;
+      }).join('') : '<div class="empty">まだ履歴はありません</div>';
 
-      show('main');
+      show('main'); setTab(currentTab);
+    }
+
+    function statusChip(st) {
+      const m = { '返金待ち': ['予約済み', ''], 'リクエスト中': ['承認待ち', ''], '予定': ['使えます', ''], '返金済み': ['使用済み', 'ok'], '付与済み': ['受取済み', 'ok'], '期限切れ': ['期限切れ', 'gray'] }[st] || [st, 'gray'];
+      return `<span class="chip ${m[1]}">${m[0]}</span>`;
     }
 
     function cardHtml(c) {
-      const v = CAMPAIGN_VIEW[c.id] || { icon: '⭐', style: 'bar' };
-      const rewards = c.rewards || [];
-      let tag = '', body = '';
-      if (v.style === 'count') {
-        tag = `<span class="tag ok">特典 ${c.progress}回</span>`;
-      } else if (c.finished) {
-        tag = '<span class="tag ok">達成</span>';
-      } else if (c.goal) {
-        tag = `<span class="tag">あと${c.goal - (c.claimed == null ? c.progress : c.claimed)}${v.unitLabel || '回'}</span>`;
+      const v = CAMPAIGN_VIEW[c.id] || { icon: '⭐', unit: '回' };
+      if (v.compact) {
+        return `<div class="card"><div class="row"><span class="title">${v.icon} ${esc(c.name)}</span><span class="chip ok">特典 ${c.progress}回</span></div>
+          <div class="muted" style="margin-top:6px">${esc(c.description)}</div></div>`;
       }
-      const got = c.claimed == null ? c.progress : c.claimed;            // 受け取り済み
-      const fresh = (justClaimed[c.id] || 0);                             // いま受け取った数（アニメーション用）
-      if (v.style === 'stamps' && c.goal) {
-        body += '<div class="stamps">' + Array.from({ length: c.goal }, (_, k) => {
-          if (k < got) return `<div class="st on ${k >= got - fresh ? 'pop' : ''}">✓</div>`;
-          if (k < c.progress) return `<div class="st wait" data-c="${c.id}" onclick="tapStamp(this)">受取</div>`;
-          return `<div class="st">${v.cellLabel ? v.cellLabel(k) : k + 1}</div>`;
-        }).join('') + '</div>';
-      } else if (v.style === 'bar' && c.goal) {
-        body += `<div class="bar"><i style="width:${Math.round(100 * got / c.goal)}%"></i><i class="wait" style="width:${Math.round(100 * (c.progress - got) / c.goal)}%"></i></div>`;
+      const got = c.claimed == null ? c.progress : c.claimed;
+      const fresh = justClaimed[c.id] || 0;
+      let chip = '';
+      if (c.finished) chip = '<span class="chip ok">達成</span>';
+      else if (c.goal) chip = `<span class="chip">あと${c.goal - got}${v.unit}</span>`;
+      let body = '';
+      if (c.goal) {
+        const cls = 'st' + (v.big ? ' big' : '');
+        const cell = (inner, k, cap) => `<div class="cell">${inner}<div class="cap">${cap}</div></div>`;
+        const cells = [];
+        if (v.endowed) cells.push(cell(`<div class="${cls} pre">✓</div>`, -1, '体験'));
+        for (let k = 0; k < c.goal; k++) {
+          const cap = (v.labels || [])[k] || `${k + 1}`;
+          if (k < got) cells.push(cell(`<div class="${cls} on ${k >= got - fresh ? 'pop' : ''}">✓</div>`, k, cap));
+          else if (k < c.progress) cells.push(cell(`<div class="${cls} wait" data-c="${c.id}" onclick="tapStamp(this)">受取</div>`, k, cap));
+          else cells.push(cell(`<div class="${cls}"></div>`, k, cap));
+        }
+        if (v.gift) cells.push(cell(`<div class="${cls} gift ${c.finished ? 'on' : ''}">🎁</div>`, 99, '無料'));
+        body += `<div class="stamps">${cells.join('')}</div>`;
       }
-      if (c.pendingReward) body += '<div class="hint">🎁 スタンプを受け取ると特典が出ます！</div>';
-      body += `<div class="desc">${esc(c.description)}</div>`;
-      body += rewards.slice(-2).map(rewardHtml).join('');   // くり返す施策は直近2回だけ出す
-      return `<div class="box camp"><div class="top"><span class="name">${v.icon} ${esc(c.name)}</span>${tag}</div>${body}</div>`;
+      // 状況に合わせた一文
+      if (!c.finished) {
+        const head = v.headline ? v.headline(c, got) : c.description;
+        const sub = v.sub ? v.sub(c, got) : '';
+        body = `<div class="lead">${esc(head)}</div>` + (sub ? `<div class="muted">${esc(sub)}</div>` : '') + body;
+      }
+      // 達成後：特典をカードの中に出し、予約までつなげる（くり返す施策は直近1回だけ）
+      const r = (c.rewards || []).slice(-1)[0];
+      if (r && (c.finished || ['予定', 'リクエスト中', '返金待ち'].includes(r.status))) body += rewardHtml(r, false);
+      if (c.finished && v.after) body += `<div class="next">▶ ${esc(v.after())}</div>`;
+      return `<div class="card"><div class="row"><span class="title">${v.icon} ${esc(c.name)}</span>${chip}</div>${body}</div>`;
     }
 
-    function rewardHtml(r) {
+    // 特典チケット。inList=true は特典タブ用（予約ボタンは出さない）
+    function rewardHtml(r, inList) {
+      const book = inList ? '' : `<a class="btn primary" href="${BOOK_URL}">特典を使って次の授業を予約する</a>`;
       switch (r.status) {
-        case '予定':     return `<div class="reward">🎁 <b>特典あり</b>：${md(r.expire) ? md(r.expire) + 'までに' : ''}アプリで予約した授業1回分の授業料をお返しします（60分を超える授業は60分ぶん）。お手続きは不要です。</div>`;
-        case '返金待ち': return `<div class="reward ok">🎁 <b>返金予定</b>：${md(r.lessonStart)}の授業${r.yen ? `（${yen(r.yen)}）` : ''}。授業のあとにお返しします。お手続きは不要です。</div>`;
-        case '返金済み': return `<div class="reward ok">✅ <b>返金済み</b>：${md(r.lessonStart)}の授業${r.yen ? `（${yen(r.yen)}）` : ''}</div>`;
-        case '付与済み': return `<div class="reward ok">✅ ${md(r.reachedAt)} 達成：Teachポイント <b>+${r.yen}pt</b></div>`;
-        case '期限切れ': return `<div class="reward gray">特典の期限（${md(r.expire)}）が過ぎました</div>`;
-        default:         return '';
+        case '予定':
+          return `<div class="ticket"><div class="lab">🎁 次の授業1回分が無料</div>
+            <div class="sub">${md(r.expire) ? `<b>${md(r.expire)}まで</b>に` : ''}アプリで予約した授業1回分の授業料をお返しします（60分を超える授業は60分ぶん）</div></div>${book}`;
+        case 'リクエスト中':
+          return `<div class="ticket"><div class="lab">⏳ 先生の承認待ち</div><div class="when">${when(r.lessonStart)}</div>
+            <div class="sub">先生が承認すると、この授業が無料になります</div></div>`;
+        case '返金待ち':
+          return `<div class="ticket"><div class="lab">🎫 この授業が無料になります</div><div class="when">${when(r.lessonStart)}</div>
+            <div class="sub">授業のあとに授業料${r.yen ? `（${yen(r.yen)}）` : ''}をお返しします。お手続きは不要です</div></div>`;
+        case '返金済み':
+          return `<div class="ticket ok"><div class="lab">✅ 特典を使いました</div><div class="when">${md(r.lessonStart)} の授業</div>
+            <div class="sub">授業料${r.yen ? ` ${yen(r.yen)}` : ''}をお返ししました</div></div>`;
+        case '付与済み':
+          return `<div class="ticket ok"><div class="lab">✅ ${md(r.reachedAt)} 達成</div><div class="when">+${r.yen}pt</div><div class="sub">Teachポイントをお送りしました</div></div>`;
+        case '期限切れ':
+          return `<div class="ticket gray"><div class="lab">期限切れ</div><div class="sub">特典の期限（${md(r.expire)}）が過ぎました</div></div>`;
+        default: return '';
       }
     }
 
@@ -237,7 +372,7 @@
     //   光っているスタンプを1個ずつタップ → ハンコの演出。1個目のタップで裏で受け取りを記録し、全部押し終わったら描き直す
     let justClaimed = {}, gotSummary = '';
     let last = null, idTokenCache = null, demoMode = false;
-    let claimPromise = null, before = null, tapped = {};
+    let claimPromise = null, before = null;
     const NAMES = () => Object.fromEntries((last.cards || []).map(c => [c.id, c.name]));
 
     function requestClaim() {
@@ -266,15 +401,14 @@
       const cid = el.getAttribute('data-c');
       requestClaim();
       el.classList.remove('wait'); el.classList.add('on', 'pop'); el.textContent = '✓'; el.onclick = null;
-      tapped[cid] = (tapped[cid] || 0) + 1;
       hanko(NAMES()[cid] || '');
       const left = Math.max(0, Number($('claim-num').textContent) - 1);
-      $('claim-num').textContent = left;
-      if (document.querySelectorAll && document.querySelectorAll('.st.wait').length === 0) finishClaim();
-      else if (!document.querySelectorAll && left === 0) finishClaim();
+      $('claim-num').textContent = left; $('badge-cards').textContent = left;
+      const remain = document.querySelectorAll ? document.querySelectorAll('.st.wait').length : left;
+      if (remain === 0) finishClaim();
     }
 
-    async function claim() {   // 「まとめて受け取る」
+    function claim() {   // 「まとめて」
       $('claim-btn').disabled = true;
       const cells = document.querySelectorAll ? Array.from(document.querySelectorAll('.st.wait')) : [];
       if (!cells.length) { requestClaim(); return finishClaim(); }
@@ -283,42 +417,46 @@
 
     async function finishClaim() {
       const data = await requestClaim();
-      if (!data || !data.ok && !demoMode) { fail('受け取りに失敗しました。時間をおいて、もう一度開いてください。'); return; }
-      const names = NAMES();
-      const claimed = data.claimed || {};
+      if (!data || (!data.ok && !demoMode)) { fail('受け取りに失敗しました。時間をおいて、もう一度開いてください。'); return; }
+      const names = NAMES(), claimed = data.claimed || {};
       gotSummary = Object.keys(claimed).length
-        ? '✅ 今日受け取ったスタンプ：' + Object.entries(claimed).map(([k, n]) => `${names[k] || k} ${n}${k === 'weekly_v1' ? '週' : '個'}`).join('・') : '';
-      justClaimed = {};   // ハンコはタップのときに押し済みなので、描き直しではアニメーションしない
-      last = data; claimPromise = null; tapped = {};
+        ? '✅ 今日受け取ったスタンプ：' + Object.entries(claimed).map(([k, n]) => `${names[k] || k} ${n}${(CAMPAIGN_VIEW[k] || {}).unit || '個'}`).join('・') : '';
+      justClaimed = {};
+      last = data; claimPromise = null;
       setTimeout(() => {
         render(data);
         const reached = (data.cards || []).find(c => (before[c.id] || {}).pendingReward && (c.rewards || []).length > ((before[c.id] || {}).rewards || []).length);
         if (reached) {
           const r = reached.rewards[reached.rewards.length - 1];
           $('cel-title').textContent = `${reached.name} 達成！`;
-          $('cel-body').innerHTML = r.status === '付与済み' ? `Teachポイント <b>+${r.yen}pt</b> をお送りしました。`
-            : `特典：${md(r.expire) ? md(r.expire) + 'までに' : ''}アプリで予約した授業1回分の授業料をお返しします（60分を超える授業は60分ぶん）。お手続きは不要です。`;
+          const isPt = r.status === '付与済み';
+          $('cel-body').innerHTML = isPt ? `Teachポイント <b>+${r.yen}pt</b> をお送りしました。`
+            : `特典：${md(r.expire) ? md(r.expire) + 'までに' : ''}予約した授業1回分が<b>無料</b>になります（授業料をお返し）。`;
+          $('cel-book').hidden = isPt;
           $('celebrate').hidden = false;
         }
       }, 700);
     }
 
-    // ---------- デモ（?demo=0〜3。LINE・GASにはつながない） ----------
+    // ---------- デモ（?demo=0〜5。LINE・GASにはつながない） ----------
+    //   0 初回のあと / 1 有料1回目 / 2 受け取ると達成 / 3 返金済み / 4 予約が確定 / 5 リクエスト中 / unlinked 未紐付け
     function demoData(i) {
       const starter = [
         { progress: 0, finished: false, rewards: [] },
         { progress: 1, finished: false, rewards: [] },
         { progress: 2, finished: true, rewards: [{ status: '予定', reachedAt: '2026-11-16', expire: '2026-12-16' }] },
         { progress: 2, finished: true, rewards: [{ status: '返金済み', reachedAt: '2026-11-16', lessonStart: '2026-11-20 17:00:00', yen: 2640 }] },
+        { progress: 2, finished: true, claimed: 2, claimable: 0, rewards: [{ status: '返金待ち', reachedAt: '2026-11-16', expire: '2026-12-16', lessonStart: '2026-11-22 17:00:00', yen: 2640 }] },
+        { progress: 2, finished: true, claimed: 2, claimable: 0, rewards: [{ status: 'リクエスト中', reachedAt: '2026-11-16', expire: '2026-12-16', lessonStart: '2026-11-22 17:00:00', yen: 2640 }] },
       ][i];
-      // デモでも受け取りを体験できるように、最後の1個を受け取り待ちにする
       if (starter.progress > 0 && i < 3) { starter.claimed = starter.progress - 1; starter.claimable = 1;
         if (starter.finished) { starter._rewardsAfter = starter.rewards; starter.rewards = []; starter.finished = false; starter.pendingReward = true; } }
       return {
         linked: true, points: 120,
-        menu: [{ '名前': '授業料500円お返し', '必要pt': 300, '中身': '' }],
+        menu: [{ '名前': '授業料500円お返し（案）', '必要pt': 300, '中身': '授業料から500円をお返し' },
+               { '名前': '60分の授業1回分お返し（案）', '必要pt': 600, '中身': '授業1回分の授業料をお返し（60分ぶんまで）' }],
         cards: [
-          Object.assign({ id: 'starter_v1', name: 'スタートカード', goal: 2,
+          Object.assign({ id: 'starter_v1', name: 'スタートカード', goal: 2, deadline: '2026-11-30 17:00:00',
             description: '初回（無料）のあと30日以内に有料授業2回で、次の授業1回分の授業料をお返し（60分ぶんまで）' }, starter),
           { id: 'weekly_v1', name: '毎週チャレンジ', goal: 4, progress: 3, claimed: 1, claimable: 2, finished: false,
             description: '4週つづけて授業を受けると Teachポイント 100pt。週が空いたらやり直し', rewards: [] },
@@ -337,10 +475,11 @@
     // ---------- 起動 ----------
     async function main() {
       const q = new URLSearchParams(location.search);
+      if (q.get('tab')) currentTab = q.get('tab');
       if (q.has('demo') || LIFF_ID.indexOf('REPLACE') === 0) {   // 設定が未入力のうちはデモ表示
         $('demo-note').hidden = false;
-        const i = Math.min(3, Math.max(0, Number(q.get('demo')) || 0));
         demoMode = true;
+        const i = Math.min(5, Math.max(0, Number(q.get('demo')) || 0));
         last = q.get('demo') === 'unlinked' ? { linked: false } : demoData(i);
         render(last);
         return;
@@ -351,8 +490,7 @@
         const idToken = liff.getIDToken();
         idTokenCache = idToken;
         if (!idToken) { fail('LINEの情報を読み込めませんでした。一度閉じて、もう一度開いてください。'); return; }
-        const params = new URLSearchParams({ type: 'mypage', idToken: idToken });
-        const res = await fetch(GAS_ENDPOINT, { method: 'POST', body: params });   // URLSearchParams＝プリフライトなし
+        const res = await fetch(GAS_ENDPOINT, { method: 'POST', body: new URLSearchParams({ type: 'mypage', idToken: idToken }) });   // URLSearchParams＝プリフライトなし
         const data = await res.json();
         if (!data.ok) { fail('マイページを読み込めませんでした。時間をおいて、もう一度開いてください。'); return; }
         last = data;
@@ -362,6 +500,8 @@
         fail('マイページを読み込めませんでした。一度LINEを閉じてから、もう一度開いてください。');
       }
     }
+    document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => setTab(b.getAttribute('data-tab'))));
+    document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => setTab(b.getAttribute('data-go'))));
     $('claim-btn').addEventListener('click', claim);
     $('cel-close').addEventListener('click', () => { $('celebrate').hidden = true; });
     main();
