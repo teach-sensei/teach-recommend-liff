@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teach マイページ</title>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    :root {
+      --bg: #F2F3F5; --card: #FFFFFF; --ink: #1F2328; --sub: #6B7280; --line: #E5E7EB;
+      --accent: #E07B00; --accent-soft: #FFF4E5; --ok: #1E8E5A; --ok-soft: #E7F6EE;
+      --gray-soft: #F3F4F6; --error: #D33;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink);
+           font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; line-height: 1.6; }
+    .page { max-width: 480px; margin: 0 auto; padding: 14px 14px 32px; display: grid; gap: 12px; }
+    .hello { font-size: 13px; color: var(--sub); }
+    .box { background: var(--card); border-radius: 14px; padding: 14px; }
+    .points { background: linear-gradient(135deg, #3157D5, #5B7BEA); color: #fff; }
+    .points .num { font-size: 32px; font-weight: 700; }
+    .points .num span { font-size: 15px; }
+    .points small { opacity: .85; font-size: 12px; }
+    .points .ex { margin-top: 10px; background: rgba(255,255,255,.16); border-radius: 10px; padding: 8px 10px; font-size: 12px; }
+    h3 { margin: 4px 2px 0; font-size: 14px; }
+    .camp { display: grid; gap: 8px; }
+    .camp .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .camp .name { font-weight: 700; font-size: 15px; }
+    .tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+    .tag.ok { background: var(--ok-soft); color: var(--ok); }
+    .tag.gray { background: var(--gray-soft); color: var(--sub); }
+    .stamps { display: flex; gap: 10px; flex-wrap: wrap; }
+    .st { width: 44px; height: 44px; border-radius: 50%; border: 2px dashed #F2C38A; display: grid; place-items: center; font-size: 18px; color: #F2C38A; }
+    .st.on { border: 0; background: var(--accent); color: #fff; }
+    .bar { height: 8px; background: var(--gray-soft); border-radius: 99px; overflow: hidden; }
+    .bar i { display: block; height: 100%; background: var(--accent); }
+    .desc { font-size: 12px; color: var(--sub); }
+    .reward { font-size: 12px; background: var(--accent-soft); border-radius: 8px; padding: 8px 10px; }
+    .reward.ok { background: var(--ok-soft); }
+    .reward.gray { background: var(--gray-soft); color: var(--sub); }
+    .li { display: flex; justify-content: space-between; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+    .li:last-child { border-bottom: 0; }
+    .li .s { color: var(--sub); font-size: 11px; }
+    .plus { color: #3157D5; font-weight: 600; white-space: nowrap; }
+    .cta { display: block; text-align: center; background: var(--accent); color: #fff; border-radius: 10px; padding: 11px; font-weight: 700; text-decoration: none; font-size: 14px; }
+    .cta.sub { background: #fff; color: var(--accent); border: 1px solid var(--accent); }
+    .foot { font-size: 11px; color: var(--sub); text-align: center; }
+    .msg { text-align: center; padding: 40px 16px; color: var(--sub); font-size: 14px; }
+    .msg.error { color: var(--error); }
+    .demo { font-size: 11px; background: #FFFBE6; border: 1px solid #F5DC8A; border-radius: 8px; padding: 6px 10px; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div id="demo-note" class="demo" hidden>デモ表示（サンプルデータ・実在の家庭ではありません）</div>
+    <div id="loading" class="msg">読み込み中…</div>
+    <div id="error" class="msg error" hidden></div>
+
+    <!-- 未紐付け -->
+    <div id="unlinked" class="box camp" hidden>
+      <div class="name">LINEとTeachをつなぐと見られます</div>
+      <div class="desc">マイページでは、スタートカードや毎週チャレンジの進み具合、特典の状態を確認できます。<br>
+        Teachに登録したメールアドレスで、LINEとTeachをつないでください（1分ほど）。</div>
+      <a id="link-btn" class="cta" href="#">LINEとTeachをつなぐ</a>
+    </div>
+
+    <!-- マイページ本体 -->
+    <div id="main" hidden>
+      <div class="page" style="padding:0">
+        <div class="box points" id="points-box" hidden>
+          <small>Teachポイント</small>
+          <div class="num"><span id="pt-num">0</span><span> pt</span></div>
+          <div class="ex" id="pt-ex" hidden></div>
+        </div>
+
+        <h3>参加中のチャレンジ</h3>
+        <div id="cards" style="display:grid;gap:12px"></div>
+
+        <h3>ポイント・特典の履歴</h3>
+        <div class="box" id="hist"></div>
+
+        <a id="book-btn" class="cta" href="#">次の授業を予約する</a>
+        <div class="foot">数は毎朝更新されます／ご不明点はトークでお気軽にご相談ください</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== 設定（公開前に差し替える） =====
+    const LIFF_ID = '2006856244-7RVkyrl4';                 // マイページ用LIFFアプリ（scope に openid が必要）
+    const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbz06gmTFI8dh7lvX0nLZGFlYx4NGZv-6NIZvTrfMoUr7j1X734LhF9Soy1EOq-aaBPsCQ/exec';    // GAS「Teachポイント」のウェブアプリURL
+    const LINK_URL = 'https://liff.line.me/2006856244-DkorZDXu';     // 既存の紐付けLIFF（メアド照合）
+    const BOOK_URL = 'https://teach.go.link?adj_t=20qreqfp';         // アプリの予約へのディープリンク
+
+    // 施策ごとの見せ方（施策を足したらここに1行）
+    const CAMPAIGN_VIEW = {
+      starter_v1: { icon: '🎫', style: 'stamps' },
+      weekly_v1:  { icon: '📅', style: 'bar', unitLabel: '週' },
+      referral:   { icon: '🤝', style: 'count' },
+    };
+
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const md = s => { const m = String(s || '').match(/^\d{4}-(\d{2})-(\d{2})/); return m ? `${+m[1]}/${+m[2]}` : ''; };
+    const yen = n => (Number(n) || 0).toLocaleString('ja-JP') + '円';
+
+    function show(id) { ['loading', 'error', 'unlinked', 'main'].forEach(k => $(k).hidden = (k !== id)); }
+    function fail(msg) { $('error').textContent = msg; show('error'); }
+
+    // ---------- 描画 ----------
+    function render(data) {
+      $('link-btn').href = LINK_URL;
+      $('book-btn').href = BOOK_URL;
+      if (!data.linked) { show('unlinked'); return; }
+
+      // Teachポイント
+      const menu = (data.menu || []).slice().sort((a, b) => a['必要pt'] - b['必要pt']);
+      if (data.points > 0 || menu.length) {
+        $('points-box').hidden = false;
+        $('pt-num').textContent = (data.points || 0).toLocaleString('ja-JP');
+        const next = menu.find(m => m['必要pt'] > data.points);
+        const can = menu.filter(m => m['必要pt'] <= data.points);
+        if (can.length) { $('pt-ex').hidden = false; $('pt-ex').innerHTML = `「${esc(can[can.length - 1]['名前'])}」と交換できます。トークで「ポイント交換」とお送りください`; }
+        else if (next) { $('pt-ex').hidden = false; $('pt-ex').innerHTML = `あと <b>${next['必要pt'] - data.points}pt</b> で「${esc(next['名前'])}」と交換できます`; }
+      }
+
+      // カード
+      const cards = data.cards || [];
+      $('cards').innerHTML = cards.length ? cards.map(cardHtml).join('')
+        : '<div class="box desc">いま参加中のチャレンジはありません。授業を受けると、ここにカードが表示されます。</div>';
+
+      // 履歴
+      const names = Object.fromEntries(cards.map(c => [c.id, c.name]));
+      const hist = data.history || [];
+      $('hist').innerHTML = hist.length ? hist.map(h => {
+        const right = h.unit === 'pt' ? `+${h.amount}pt` : (h.campaign === 'referral' ? '特典' : `スタンプ+${h.amount}`);
+        const label = (names[h.campaign] || h.campaign) + (h.memo ? `：${h.memo}` : '');
+        return `<div class="li"><div>${esc(label)}<div class="s">${md(h.at)}</div></div><div class="plus">${esc(right)}</div></div>`;
+      }).join('') : '<div class="desc">まだ履歴はありません</div>';
+
+      show('main');
+    }
+
+    function cardHtml(c) {
+      const v = CAMPAIGN_VIEW[c.id] || { icon: '⭐', style: 'bar' };
+      const rewards = c.rewards || [];
+      let tag = '', body = '';
+      if (v.style === 'count') {
+        tag = `<span class="tag ok">特典 ${c.progress}回</span>`;
+      } else if (c.finished) {
+        tag = '<span class="tag ok">達成</span>';
+      } else if (c.goal) {
+        tag = `<span class="tag">あと${c.goal - c.progress}${v.unitLabel || '回'}</span>`;
+      }
+      if (v.style === 'stamps' && c.goal) {
+        body += '<div class="stamps">' + Array.from({ length: c.goal }, (_, k) =>
+          `<div class="st ${k < c.progress ? 'on' : ''}">${k < c.progress ? '✓' : k + 1}</div>`).join('') + '</div>';
+      } else if (v.style === 'bar' && c.goal) {
+        body += `<div class="bar"><i style="width:${Math.round(100 * c.progress / c.goal)}%"></i></div>`;
+      }
+      body += `<div class="desc">${esc(c.description)}</div>`;
+      body += rewards.slice(-2).map(rewardHtml).join('');   // くり返す施策は直近2回だけ出す
+      return `<div class="box camp"><div class="top"><span class="name">${v.icon} ${esc(c.name)}</span>${tag}</div>${body}</div>`;
+    }
+
+    function rewardHtml(r) {
+      switch (r.status) {
+        case '予定':     return `<div class="reward">🎁 <b>特典あり</b>：${md(r.expire) ? md(r.expire) + 'までに' : ''}アプリで予約した授業1回分の授業料をお返しします（60分を超える授業は60分ぶん）。お手続きは不要です。</div>`;
+        case '返金待ち': return `<div class="reward ok">🎁 <b>返金予定</b>：${md(r.lessonStart)}の授業${r.yen ? `（${yen(r.yen)}）` : ''}。授業のあとにお返しします。お手続きは不要です。</div>`;
+        case '返金済み': return `<div class="reward ok">✅ <b>返金済み</b>：${md(r.lessonStart)}の授業${r.yen ? `（${yen(r.yen)}）` : ''}</div>`;
+        case '付与済み': return `<div class="reward ok">✅ ${md(r.reachedAt)} 達成：Teachポイント <b>+${r.yen}pt</b></div>`;
+        case '期限切れ': return `<div class="reward gray">特典の期限（${md(r.expire)}）が過ぎました</div>`;
+        default:         return '';
+      }
+    }
+
+    // ---------- デモ（?demo=0〜3。LINE・GASにはつながない） ----------
+    function demoData(i) {
+      const starter = [
+        { progress: 0, finished: false, rewards: [] },
+        { progress: 1, finished: false, rewards: [] },
+        { progress: 2, finished: true, rewards: [{ status: '予定', reachedAt: '2026-11-16', expire: '2026-12-16' }] },
+        { progress: 2, finished: true, rewards: [{ status: '返金済み', reachedAt: '2026-11-16', lessonStart: '2026-11-20 17:00:00', yen: 2640 }] },
+      ][i];
+      return {
+        linked: true, points: 120,
+        menu: [{ '名前': '授業料500円お返し', '必要pt': 300, '中身': '' }],
+        cards: [
+          Object.assign({ id: 'starter_v1', name: 'スタートカード', goal: 2,
+            description: '初回（無料）のあと30日以内に有料授業2回で、次の授業1回分の授業料をお返し（60分ぶんまで）' }, starter),
+          { id: 'weekly_v1', name: '毎週チャレンジ', goal: 4, progress: 2, finished: false,
+            description: '4週つづけて授業を受けると Teachポイント 100pt。週が空いたらやり直し', rewards: [] },
+          { id: 'referral', name: '友達紹介', goal: null, progress: 1, finished: false,
+            description: '紹介したお友だちが初回の授業を受けると、次の授業1回分が無料', rewards: [] },
+        ],
+        history: [
+          { at: '2026-11-12', campaign: 'weekly_v1', unit: 'stamp', amount: 1, memo: '' },
+          { at: '2026-11-09', campaign: 'starter_v1', unit: 'stamp', amount: 1, memo: '' },
+          { at: '2026-10-28', campaign: 'referral', unit: 'stamp', amount: 1, memo: '' },
+          { at: '2026-10-01', campaign: 'weekly_v1', unit: 'pt', amount: 120, memo: '開始ボーナス' },
+        ],
+      };
+    }
+
+    // ---------- 起動 ----------
+    async function main() {
+      const q = new URLSearchParams(location.search);
+      if (q.has('demo') || LIFF_ID.indexOf('REPLACE') === 0) {   // 設定が未入力のうちはデモ表示
+        $('demo-note').hidden = false;
+        const i = Math.min(3, Math.max(0, Number(q.get('demo')) || 0));
+        render(q.get('demo') === 'unlinked' ? { linked: false } : demoData(i));
+        return;
+      }
+      try {
+        await liff.init({ liffId: LIFF_ID });
+        if (!liff.isLoggedIn()) { liff.login(); return; }
+        const idToken = liff.getIDToken();
+        if (!idToken) { fail('LINEの情報を読み込めませんでした。一度閉じて、もう一度開いてください。'); return; }
+        const params = new URLSearchParams({ type: 'mypage', idToken: idToken });
+        const res = await fetch(GAS_ENDPOINT, { method: 'POST', body: params });   // URLSearchParams＝プリフライトなし
+        const data = await res.json();
+        if (!data.ok) { fail('マイページを読み込めませんでした。時間をおいて、もう一度開いてください。'); return; }
+        render(data);
+      } catch (e) {
+        console.error(e);
+        fail('マイページを読み込めませんでした。一度LINEを閉じてから、もう一度開いてください。');
+      }
+    }
+    main();
+  </script>
+</body>
+</html>
