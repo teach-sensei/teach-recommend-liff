@@ -62,6 +62,10 @@
     .st.pre { background: #F3C98F; color: #fff; border: 0; }
     .st.gift { border: 2px dashed #E9C99D; font-size: 24px; filter: grayscale(1); opacity: .55; }
     .st.gift.on { filter: none; opacity: 1; border: 0; background: var(--accent-soft); }
+    .st.gift.ready { filter: none; opacity: 1; border: 2px solid var(--accent); background: #fff; animation: wiggle 1.6s ease-in-out infinite; }
+    .st.gift.booked { filter: none; opacity: 1; border: 0; background: var(--accent); color: #fff; font-size: 13px; font-weight: 800; }
+    .st.gift.used { filter: none; opacity: 1; border: 0; background: var(--ok-soft); color: var(--ok); font-size: 22px; }
+    @keyframes wiggle { 0%,100% { transform: rotate(0); } 10% { transform: rotate(-12deg); } 20% { transform: rotate(10deg); } 30% { transform: rotate(-6deg); } 40% { transform: rotate(0); } }
     .next { margin-top: 12px; background: var(--blue-soft); color: var(--blue); border-radius: 12px; padding: 10px 12px; font-size: 13px; font-weight: 700; }
     details.qa { background: #fff; border-radius: 16px; padding: 4px 16px; box-shadow: var(--shadow); }
     details.qa summary { padding: 12px 0; font-size: 14px; font-weight: 700; cursor: pointer; }
@@ -144,12 +148,12 @@
       <div class="top">
         <div class="top-row">
           <h1>マイページ</h1>
-          <button class="pt-pill" type="button" data-go="points">🪙 <span id="pt-pill">0</span>pt</button>
+          <button class="pt-pill" type="button" data-go="points">🎫 ためたスタンプ <span id="pt-pill">0</span>個</button>
         </div>
         <div class="tabs" role="tablist">
           <button class="tab on" type="button" data-tab="cards">カード<span class="badge" id="badge-cards" hidden></span></button>
           <button class="tab" type="button" data-tab="rewards">特典<span class="badge" id="badge-rewards" hidden></span></button>
-          <button class="tab" type="button" data-tab="points">ポイント</button>
+          <button class="tab" type="button" data-tab="points">スタンプ帳</button>
         </div>
       </div>
 
@@ -165,12 +169,12 @@
           <summary>くわしいルール</summary>
           <div class="q">スタンプはいつ届く？</div>
           <div class="a">授業を受けた翌朝に届きます。予約しただけでは届きません。受け取らなくても、特典の対象からは外れません。</div>
-          <div class="q">「次の授業が無料」のお金はどうなる？</div>
-          <div class="a">授業料はいつも通りお支払いください。その授業が終わったあと、授業料をお返しします（60分を超える授業は60分ぶん）。お手続きは不要です。</div>
+          <div class="q">「授業料をお返し」はどういうこと？</div>
+          <div class="a">予約もお支払いもいつも通りです。特典を使う授業が終わったあと、その授業料を全額お返しします（60分を超える授業は60分ぶん）。お支払いに使ったカードに返金します（数日〜1週間ほど）。お手続きは不要です。</div>
           <div class="q">毎週チャレンジの「週」は？</div>
           <div class="a">月曜〜日曜で数えます。1週だけ休んでも続いたことになります（おやすみ週・4週に1回）。2週休むと1週目からやり直しです。</div>
-          <div class="q">ポイントは何に使える？</div>
-          <div class="a">「ポイント」タブの交換メニューから交換できます（準備中）。</div>
+          <div class="q">「ためたスタンプ」は何に使える？</div>
+          <div class="a">チャレンジを達成するともらえるスタンプです。「スタンプ帳」タブで、授業料のお返しなどと交換できます（準備中）。</div>
         </details>
       </div>
 
@@ -180,13 +184,14 @@
 
       <div class="pane" id="pane-points" hidden>
         <div class="card balance">
-          <div class="muted" style="color:rgba(255,255,255,.85)">Teachポイント</div>
-          <div class="num"><span id="pt-num" style="font-size:36px;margin:0">0</span><span>pt</span></div>
+          <div class="muted" style="color:rgba(255,255,255,.85)">ためたスタンプ（交換に使えます）</div>
+          <div class="num"><span id="pt-num" style="font-size:36px;margin:0">0</span><span>個</span></div>
+          <div style="font-size:12px;opacity:.9">チャレンジを達成すると、ここにスタンプがたまります</div>
           <div id="pt-next"></div>
         </div>
         <div class="section">交換できるもの</div>
         <div class="card" id="pt-menu"></div>
-        <div class="section">ポイントとスタンプの履歴</div>
+        <div class="section">スタンプの履歴</div>
         <div class="card" id="hist"></div>
       </div>
     </div>
@@ -196,10 +201,10 @@
   <div class="hanko" id="hanko" hidden><div class="seal"><div>受取<small id="hanko-sub"></small></div></div></div>
   <div class="modal" id="celebrate" hidden>
     <div class="in">
-      <div class="big">🎉</div>
+      <div class="big">🎁</div>
       <div style="font-weight:800;font-size:18px" id="cel-title"></div>
       <div class="muted" id="cel-body" style="font-size:13px"></div>
-      <a class="btn primary" id="cel-book" href="#">特典を使って次の授業を予約する</a>
+      <a class="btn primary" id="cel-book" href="#">いま予約する</a>
       <button type="button" class="btn ghost" id="cel-close">あとで</button>
     </div>
   </div>
@@ -213,15 +218,17 @@
 
     // 施策ごとの見せ方（施策を足したらここに1行）
     const CAMPAIGN_VIEW = {
-      starter_v1: { icon: '🎫', big: true, unit: '回', endowed: true, gift: true, labels: ['1回目', '2回目', '3回目'],
-        headline: (c, got) => c.pendingReward ? 'スタンプを受け取ると達成！' : `あと${c.goal - got}回で、次の授業が無料！`,
+      starter_v1: { icon: '🎫', big: true, unit: '回', short: 'スタートカード', endowed: true, gift: true, labels: ['1回目', '2回目', '3回目'],
+        headline: (c, got) => c.pendingReward ? 'スタンプを受け取ると達成！' : `あと${c.goal - got}回で、次の授業料1回分をお返し！`,
         sub: (c, got) => (c.deadline ? `${dayw(c.deadline)}まで` : '') + (got === 0 ? '　無料体験で1こ目のスタンプが押されました' : ''),
-        after: () => '次は「毎週チャレンジ」。毎週1回の授業が4週つづくと100ポイント' },
-      weekly_v1:  { icon: '📅', unit: '週', labels: ['1週', '2週', '3週', '4週'],
-        headline: (c, got) => c.pendingReward ? 'スタンプを受け取ると達成！' : (got === 0 ? '毎週1回の授業で、4週つづくと100ポイント' : `あと${c.goal - got}週つづくと100ポイント`),
+        after: () => '次は「毎週チャレンジ」。毎週1回の授業が4週つづくと、交換に使えるスタンプ+5' },
+      weekly_v1:  { icon: '📅', unit: '週', short: '毎週チャレンジ', labels: ['1週', '2週', '3週', '4週'],
+        headline: (c, got) => c.pendingReward ? 'スタンプを受け取ると達成！' : (got === 0 ? '毎週1回の授業で、4週つづくとスタンプ+5' : `あと${c.goal - got}週つづくとスタンプ+5`),
         sub: c => c.restUsed ? 'おやすみ週を使いました。連続はそのままです' : '週は月〜日で数えます。1週だけなら休んでもOK（おやすみ週）' },
       referral:   { icon: '🤝', compact: true },
     };
+    // 返金の説明（返金担当のやり方に合わせて直す：返金先と日数）
+    const REFUND_HOW = 'お支払いに使ったカードに返金します（数日〜1週間ほど）';
     // 「11/18（火）」の形
     const dayw = s => { const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/); if (!m) return '';
       return `${+m[2]}/${+m[3]}（${'日月火水木金土'[new Date(+m[1], +m[2] - 1, +m[3]).getDay()]}）`; };
@@ -285,14 +292,14 @@
       const next = menu.find(m => m['必要pt'] > pts);
       const first = menu[0];
       $('pt-next').innerHTML = next ? `<div class="meter"><i style="width:${Math.min(100, Math.round(100 * pts / next['必要pt']))}%"></i></div>
-        <div style="font-size:12px">あと <b>${next['必要pt'] - pts}pt</b> で「${esc(next['名前'])}」</div>` : (menu.length ? '<div style="font-size:12px;margin-top:6px">交換できるものがあります</div>' : '');
+        <div style="font-size:12px">あと <b>${next['必要pt'] - pts}個</b> で「${esc(next['名前'])}」</div>` : (menu.length ? '<div style="font-size:12px;margin-top:6px">交換できるものがあります</div>' : '');
       $('pt-menu').innerHTML = menu.length ? menu.map(m => `<div class="menu-li"><div><div style="font-size:14px;font-weight:700">${esc(m['名前'])}</div><div class="muted">${esc(m['中身'] || '')}</div></div>
-          <div style="text-align:right"><div class="pt">${m['必要pt']}pt</div><button type="button" disabled>${m['必要pt'] <= pts ? '準備中' : `あと${m['必要pt'] - pts}pt`}</button></div></div>`).join('')
+          <div style="text-align:right"><div class="pt">🎫×${m['必要pt']}</div><button type="button" disabled>${m['必要pt'] <= pts ? '交換（準備中）' : `あと${m['必要pt'] - pts}個`}</button></div></div>`).join('')
         : '<div class="empty">交換できるものは準備中です</div>';
       const names = Object.fromEntries(cards.map(c => [c.id, c.name]));
       const hist = data.history || [];
       $('hist').innerHTML = hist.length ? hist.map(h => {
-        const right = h.unit === 'pt' ? `+${h.amount}pt` : (h.campaign === 'referral' ? '特典' : `スタンプ+${h.amount}`);
+        const right = h.unit === 'pt' ? `ためたスタンプ +${h.amount}` : (h.campaign === 'referral' ? '特典' : `${(CAMPAIGN_VIEW[h.campaign] || {}).short || 'カード'}に+${h.amount}`);
         const label = (names[h.campaign] || h.campaign) + (h.memo ? `：${h.memo}` : '');
         return `<div class="li"><div>${esc(label)}<div class="d">${md(h.at)}</div></div><div class="v">${esc(right)}</div></div>`;
       }).join('') : '<div class="empty">まだ履歴はありません</div>';
@@ -314,7 +321,14 @@
       const got = c.claimed == null ? c.progress : c.claimed;
       const fresh = justClaimed[c.id] || 0;
       let chip = '';
-      if (c.finished) chip = '<span class="chip ok">達成</span>';
+      if (c.finished) {
+        const rr = (c.rewards || []).slice(-1)[0], st = rr ? rr.status : '';
+        chip = st === '予定' ? '<span class="chip">あとは予約するだけ</span>'
+             : st === '返金待ち' ? '<span class="chip">予約済み</span>'
+             : st === 'リクエスト中' ? '<span class="chip">承認待ち</span>'
+             : st === '返金済み' ? '<span class="chip ok">使用済み</span>'
+             : st === '期限切れ' ? '<span class="chip gray">期限切れ</span>' : '<span class="chip ok">達成</span>';
+      }
       else if (c.goal) chip = `<span class="chip">あと${c.goal - got}${v.unit}</span>`;
       let body = '';
       if (c.goal) {
@@ -328,7 +342,15 @@
           else if (k < c.progress) cells.push(cell(`<div class="${cls} wait" data-c="${c.id}" onclick="tapStamp(this)">受取</div>`, k, cap));
           else cells.push(cell(`<div class="${cls}"></div>`, k, cap));
         }
-        if (v.gift) cells.push(cell(`<div class="${cls} gift ${c.finished ? 'on' : ''}">🎁</div>`, 99, '無料'));
+        if (v.gift) {
+          const rr = (c.rewards || []).slice(-1)[0];
+          const st = c.finished && rr ? rr.status : '';
+          if (st === '予定') cells.push(cell(`<div class="${cls} gift ready">🎁</div>`, 99, '予約で使う'));
+          else if (st === '返金待ち' || st === 'リクエスト中') cells.push(cell(`<div class="${cls} gift booked">${md(rr.lessonStart)}</div>`, 99, st === '返金待ち' ? 'この日を返金' : '承認待ち'));
+          else if (st === '返金済み') cells.push(cell(`<div class="${cls} gift used">✓</div>`, 99, '使用済み'));
+          else if (st === '期限切れ') cells.push(cell(`<div class="${cls} gift">🎁</div>`, 99, '期限切れ'));
+          else cells.push(cell(`<div class="${cls} gift">🎁</div>`, 99, 'お返し'));
+        }
         body += `<div class="stamps">${cells.join('')}</div>`;
       }
       // 状況に合わせた一文
@@ -346,22 +368,23 @@
 
     // 特典チケット。inList=true は特典タブ用（予約ボタンは出さない）
     function rewardHtml(r, inList) {
-      const book = inList ? '' : `<a class="btn primary" href="${BOOK_URL}">特典を使って次の授業を予約する</a>`;
+      const book = inList ? '' : `<a class="btn primary" href="${BOOK_URL}">次の授業を予約する</a>`;
       switch (r.status) {
         case '予定':
-          return `<div class="ticket"><div class="lab">🎁 次の授業1回分が無料</div>
-            <div class="sub">${md(r.expire) ? `<b>${md(r.expire)}まで</b>に` : ''}アプリで予約した授業1回分の授業料をお返しします（60分を超える授業は60分ぶん）</div></div>${book}`;
+          return `<div class="ticket"><div class="lab">🎁 特典ゲット！ あとは予約するだけ</div>
+            <div class="when" style="font-size:17px">次の授業料を1回分お返し</div>
+            <div class="sub">予約もお支払いもいつも通りでOK。授業が終わったあと、授業料を全額お返しします（60分を超える授業は60分ぶん）${md(r.expire) ? `。<b>${md(r.expire)}まで</b>の予約が対象` : ''}</div></div>${book}`;
         case 'リクエスト中':
           return `<div class="ticket"><div class="lab">⏳ 先生の承認待ち</div><div class="when">${when(r.lessonStart)}</div>
-            <div class="sub">先生が承認すると、この授業が無料になります</div></div>`;
+            <div class="sub">先生が承認すると、この授業の授業料をあとでお返しします</div></div>`;
         case '返金待ち':
-          return `<div class="ticket"><div class="lab">🎫 この授業が無料になります</div><div class="when">${when(r.lessonStart)}</div>
-            <div class="sub">授業のあとに授業料${r.yen ? `（${yen(r.yen)}）` : ''}をお返しします。お手続きは不要です</div></div>`;
+          return `<div class="ticket"><div class="lab">🎫 この授業の授業料をお返しします</div><div class="when">${when(r.lessonStart)}</div>
+            <div class="sub">お支払いはいつも通り。授業が終わったあと、${r.yen ? `<b>${yen(r.yen)}</b>を` : ''}${REFUND_HOW}</div></div>`;
         case '返金済み':
-          return `<div class="ticket ok"><div class="lab">✅ 特典を使いました</div><div class="when">${md(r.lessonStart)} の授業</div>
-            <div class="sub">授業料${r.yen ? ` ${yen(r.yen)}` : ''}をお返ししました</div></div>`;
+          return `<div class="ticket ok"><div class="lab">✅ 特典を使いました</div><div class="when">${md(r.lessonStart)} の授業料</div>
+            <div class="sub">${r.yen ? `${yen(r.yen)}を` : ''}お返ししました</div></div>`;
         case '付与済み':
-          return `<div class="ticket ok"><div class="lab">✅ ${md(r.reachedAt)} 達成</div><div class="when">+${r.yen}pt</div><div class="sub">Teachポイントをお送りしました</div></div>`;
+          return `<div class="ticket ok"><div class="lab">✅ ${md(r.reachedAt)} 達成</div><div class="when">スタンプ +${r.yen}個</div><div class="sub">スタンプ帳にためました（交換に使えます）</div></div>`;
         case '期限切れ':
           return `<div class="ticket gray"><div class="lab">期限切れ</div><div class="sub">特典の期限（${md(r.expire)}）が過ぎました</div></div>`;
         default: return '';
@@ -372,7 +395,7 @@
     //   光っているスタンプを1個ずつタップ → ハンコの演出。1個目のタップで裏で受け取りを記録し、全部押し終わったら描き直す
     let justClaimed = {}, gotSummary = '';
     let last = null, idTokenCache = null, demoMode = false;
-    let claimPromise = null, before = null;
+    let claimPromise = null, before = null, celebrated = {};
     const NAMES = () => Object.fromEntries((last.cards || []).map(c => [c.id, c.name]));
 
     function requestClaim() {
@@ -387,6 +410,28 @@
         claimPromise = fetch(GAS_ENDPOINT, { method: 'POST', body: new URLSearchParams({ type: 'claim', idToken: idTokenCache }) }).then(r => r.json());
       }
       return claimPromise;
+    }
+
+    function celebrate(card) {
+      const r = (card.rewards || []).slice(-1)[0];
+      if (!r) return;
+      celebrated[card.id] = true;
+      $('cel-title').textContent = `${card.name} 達成！`;
+      const isPt = r.status === '付与済み';
+      $('cel-body').innerHTML = isPt ? `交換に使えるスタンプ <b>+${r.yen}個</b> をスタンプ帳にためました。`
+        : `<b>特典ゲット！</b><br>次の授業1回分の<b>授業料をお返し</b>します。<br>予約もお支払いもいつも通りでOK。授業が終わったあとに返金します${md(r.expire) ? `（${md(r.expire)}までの予約が対象）` : ''}`;
+      $('cel-book').hidden = isPt;
+      setTimeout(() => { $('celebrate').hidden = false; }, 600);
+    }
+
+    // そのカードの光っているスタンプを押し切ったら、ほかのカードを待たずに達成を出す
+    async function maybeCelebrate(cid) {
+      if (celebrated[cid] || !(before && before[cid] && before[cid].pendingReward)) return;
+      const left = document.querySelectorAll ? document.querySelectorAll(`.st.wait[data-c="${cid}"]`).length : 0;
+      if (left > 0) return;
+      const data = await requestClaim();
+      const card = (data.cards || []).find(c => c.id === cid);
+      if (card) celebrate(card);
     }
 
     function hanko(sub) {
@@ -404,6 +449,7 @@
       hanko(NAMES()[cid] || '');
       const left = Math.max(0, Number($('claim-num').textContent) - 1);
       $('claim-num').textContent = left; $('badge-cards').textContent = left;
+      maybeCelebrate(cid);
       const remain = document.querySelectorAll ? document.querySelectorAll('.st.wait').length : left;
       if (remain === 0) finishClaim();
     }
@@ -425,16 +471,9 @@
       last = data; claimPromise = null;
       setTimeout(() => {
         render(data);
-        const reached = (data.cards || []).find(c => (before[c.id] || {}).pendingReward && (c.rewards || []).length > ((before[c.id] || {}).rewards || []).length);
-        if (reached) {
-          const r = reached.rewards[reached.rewards.length - 1];
-          $('cel-title').textContent = `${reached.name} 達成！`;
-          const isPt = r.status === '付与済み';
-          $('cel-body').innerHTML = isPt ? `Teachポイント <b>+${r.yen}pt</b> をお送りしました。`
-            : `特典：${md(r.expire) ? md(r.expire) + 'までに' : ''}予約した授業1回分が<b>無料</b>になります（授業料をお返し）。`;
-          $('cel-book').hidden = isPt;
-          $('celebrate').hidden = false;
-        }
+        const reached = (data.cards || []).find(c => !celebrated[c.id] && (before[c.id] || {}).pendingReward && (c.rewards || []).length > ((before[c.id] || {}).rewards || []).length);
+        if (reached) celebrate(reached);
+        celebrated = {};
       }, 700);
     }
 
@@ -452,14 +491,14 @@
       if (starter.progress > 0 && i < 3) { starter.claimed = starter.progress - 1; starter.claimable = 1;
         if (starter.finished) { starter._rewardsAfter = starter.rewards; starter.rewards = []; starter.finished = false; starter.pendingReward = true; } }
       return {
-        linked: true, points: 120,
-        menu: [{ '名前': '授業料500円お返し（案）', '必要pt': 300, '中身': '授業料から500円をお返し' },
-               { '名前': '60分の授業1回分お返し（案）', '必要pt': 600, '中身': '授業1回分の授業料をお返し（60分ぶんまで）' }],
+        linked: true, points: 5,
+        menu: [{ '名前': '授業料500円お返し（案）', '必要pt': 10, '中身': '授業料から500円をお返し' },
+               { '名前': '60分の授業1回分お返し（案）', '必要pt': 20, '中身': '授業1回分の授業料をお返し（60分ぶんまで）' }],
         cards: [
           Object.assign({ id: 'starter_v1', name: 'スタートカード', goal: 2, deadline: '2026-11-30 17:00:00',
             description: '初回（無料）のあと30日以内に有料授業2回で、次の授業1回分の授業料をお返し（60分ぶんまで）' }, starter),
           { id: 'weekly_v1', name: '毎週チャレンジ', goal: 4, progress: 3, claimed: 1, claimable: 2, finished: false,
-            description: '4週つづけて授業を受けると Teachポイント 100pt。週が空いたらやり直し', rewards: [] },
+            description: '4週つづけて授業を受けると、交換に使えるスタンプ+5', rewards: [{ status: '付与済み', reachedAt: '2026-10-26', yen: 5 }] },
           { id: 'referral', name: '友達紹介', goal: null, progress: 1, finished: false,
             description: '紹介したお友だちが初回の授業を受けると、次の授業1回分が無料', rewards: [] },
         ],
@@ -467,7 +506,7 @@
           { at: '2026-11-12', campaign: 'weekly_v1', unit: 'stamp', amount: 1, memo: '' },
           { at: '2026-11-09', campaign: 'starter_v1', unit: 'stamp', amount: 1, memo: '' },
           { at: '2026-10-28', campaign: 'referral', unit: 'stamp', amount: 1, memo: '' },
-          { at: '2026-10-01', campaign: 'weekly_v1', unit: 'pt', amount: 120, memo: '開始ボーナス' },
+          { at: '2026-10-26', campaign: 'weekly_v1', unit: 'pt', amount: 5, memo: '4週達成' },
         ],
       };
     }
