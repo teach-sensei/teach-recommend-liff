@@ -107,6 +107,51 @@
     .li .v { font-weight: 700; color: var(--blue); white-space: nowrap; }
     .empty { text-align: center; color: var(--sub); font-size: 13px; padding: 18px 8px; }
 
+    /* すごろく */
+    .hero { display: grid; gap: 8px; }
+    .hero .where { font-size: 12px; color: var(--sub); font-weight: 700; }
+    .hero .pos { font-size: 22px; font-weight: 800; line-height: 1.3; }
+    .hero .pos small { font-size: 14px; color: var(--sub); margin-left: 4px; }
+    .goalbar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; font-size: 12px; color: var(--sub); }
+    .goalbar .bar { height: 10px; background: #F1E4D2; border-radius: 99px; overflow: hidden; }
+    .goalbar .bar i { display: block; height: 100%; background: linear-gradient(90deg, #F4A23B, var(--accent)); border-radius: 99px; }
+    .goalbar b { color: var(--ink); }
+    .todo { background: var(--blue-soft); color: var(--blue); border-radius: 12px; padding: 10px 12px; font-size: 13px; font-weight: 700; line-height: 1.5; }
+    .todo b { font-size: 15px; }
+    .area { border-radius: 16px; padding: 12px 12px 6px; box-shadow: var(--shadow); }
+    .area-h { display: flex; justify-content: space-between; align-items: center; font-weight: 800; font-size: 15px; }
+    .board { position: relative; width: 100%; aspect-ratio: 2.05 / 1; margin-top: 6px; }
+    .board svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .sq { position: absolute; transform: translate(-50%, -50%); width: 40px; height: 40px; border-radius: 50%; background: #fff; border: 2px solid #E3E6EA;
+          display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--faint); }
+    .sq.prize { font-size: 20px; border: 2px dashed #E9C99D; }
+    .sq.money { width: 52px; height: 52px; font-size: 26px; border: 3px solid #F2C14E; background: #FFF8E1; box-shadow: 0 0 0 4px rgba(242,193,78,.18); }
+    .sq.done { background: var(--accent); border-color: var(--accent); color: #fff; font-size: 15px; }
+    .sq.prize.done, .sq.money.done { background: #FFE9C7; border: 3px solid var(--accent); }
+    .sq.here { box-shadow: 0 0 0 5px rgba(229,122,0,.25); }
+    .sq.target { animation: glow 1.4s ease-in-out infinite; }
+    .sq .lb { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 2px; white-space: nowrap; font-size: 9.5px; font-weight: 800; color: var(--accent-ink); }
+    .sq.money .lb { color: #9A6A00; font-size: 10px; }
+    .sq .lb.got { color: var(--ok); }
+    .pin { position: absolute; transform: translate(-50%, -100%); margin-top: -24px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 800;
+           padding: 2px 7px; border-radius: 8px; white-space: nowrap; z-index: 2; animation: hop 1.2s ease-in-out infinite; }
+    .pin::after { content: ''; position: absolute; left: 50%; top: 100%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: var(--accent); }
+    .pin.ghost { background: var(--blue); animation: none; opacity: .92; }
+    .pin.ghost::after { border-top-color: var(--blue); }
+    .pin.money-pin { margin-top: -30px; }
+    @keyframes hop { 0%,100% { transform: translate(-50%, -100%); } 50% { transform: translate(-50%, -125%); } }
+    .lockarea { border-radius: 16px; padding: 14px; background: #EEF0F3; color: var(--sub); text-align: center; display: grid; gap: 6px; }
+    .lockarea .t { font-weight: 800; color: var(--ink); font-size: 15px; }
+    .lockarea .dots { display: flex; justify-content: center; gap: 6px; filter: blur(1.5px); opacity: .7; }
+    .lockarea .dots i { width: 18px; height: 18px; border-radius: 50%; background: #D5D9DE; font-style: normal; font-size: 10px; line-height: 18px; color: #fff; }
+    .lockarea .dots i.big { width: 24px; height: 24px; background: #E8C66F; }
+    .cleared { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: #fff; border-radius: 12px; padding: 10px 12px; font-size: 13px; box-shadow: var(--shadow); }
+    .shelf { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px 6px; margin-top: 10px; }
+    .bd { display: grid; justify-items: center; gap: 2px; font-size: 9.5px; color: var(--sub); text-align: center; line-height: 1.25; }
+    .bd .ic { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; background: #FFF3E3; }
+    .bd.lock .ic { background: #F1F2F4; color: #C2C7CE; font-size: 16px; font-weight: 800; }
+    .bd.lock.seen .ic { font-size: 22px; filter: grayscale(1); opacity: .45; }
+
     /* 下の固定ボタン */
     .dock { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(245,246,248,.94); backdrop-filter: blur(6px);
             padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); z-index: 6; }
@@ -148,12 +193,12 @@
       <div class="top">
         <div class="top-row">
           <h1>マイページ</h1>
-          <button class="pt-pill" type="button" data-go="points">🎫 ためたスタンプ <span id="pt-pill">0</span>個</button>
+          <button class="pt-pill" type="button" data-go="points">🎲 すごろく <span id="pt-pill">0</span>マス目</button>
         </div>
         <div class="tabs" role="tablist">
           <button class="tab on" type="button" data-tab="cards">カード<span class="badge" id="badge-cards" hidden></span></button>
           <button class="tab" type="button" data-tab="rewards">特典<span class="badge" id="badge-rewards" hidden></span></button>
-          <button class="tab" type="button" data-tab="points">スタンプ帳</button>
+          <button class="tab" type="button" data-tab="points">すごろく</button>
         </div>
       </div>
 
@@ -173,8 +218,8 @@
           <div class="a">特典を手に入れたあとに受ける最初の授業1回が対象です（すでに予約している授業でもOK。兄弟の授業でもOK）。予約もお支払いもいつも通りで、授業が終わったらTeachが授業料を自動で返金します（60分を超える授業は60分ぶん。お支払いのカードへ・数日〜1週間ほど）。予約がキャンセルになったときは、次の授業が自動で対象になります。何もしなくて大丈夫です。</div>
           <div class="q">毎週チャレンジの「週」は？</div>
           <div class="a">月曜〜日曜で数えます。1週だけ休んでも続いたことになります（おやすみ週・4週に1回）。2週休むと1週目からやり直しです。</div>
-          <div class="q">「ためたスタンプ」は何に使える？</div>
-          <div class="a">チャレンジを達成するともらえるスタンプです。「スタンプ帳」タブで、授業料のお返しなどと交換できます（準備中）。</div>
+          <div class="q">すごろくは？</div>
+          <div class="a">チャレンジを達成するともらえるスタンプ1個で、すごろくが1マス進みます（毎週チャレンジ達成で5マス）。とちゅうのマスでバッジ、節目のマスで授業料のお返しがもらえます。10マスごとに次のエリアの地図が開きます。スタンプは減りません。</div>
         </details>
       </div>
 
@@ -183,14 +228,10 @@
       </div>
 
       <div class="pane" id="pane-points" hidden>
-        <div class="card balance">
-          <div class="muted" style="color:rgba(255,255,255,.85)">ためたスタンプ（交換に使えます）</div>
-          <div class="num"><span id="pt-num" style="font-size:36px;margin:0">0</span><span>個</span></div>
-          <div style="font-size:12px;opacity:.9">チャレンジを達成すると、ここにスタンプがたまります</div>
-          <div id="pt-next"></div>
-        </div>
-        <div class="section">交換できるもの</div>
-        <div class="card" id="pt-menu"></div>
+        <div class="card hero" id="bd-hero"></div>
+        <div id="bd-areas" style="display:grid;gap:10px"></div>
+        <div class="section">あつめたバッジ <span id="bd-count"></span></div>
+        <div class="card"><div class="shelf" id="bd-shelf"></div></div>
         <div class="section">スタンプの履歴</div>
         <div class="card" id="hist"></div>
       </div>
@@ -205,6 +246,7 @@
       <div style="font-weight:800;font-size:18px" id="cel-title"></div>
       <div class="muted" id="cel-body" style="font-size:13px"></div>
       <a class="btn primary" id="cel-book" href="#">いま予約する</a>
+      <button type="button" class="btn primary" id="cel-board" hidden>すごろくを見る</button>
       <button type="button" class="btn ghost" id="cel-close">あとで</button>
     </div>
   </div>
@@ -221,12 +263,107 @@
       starter_v1: { icon: '🎫', big: true, unit: '回', short: 'スタートカード', endowed: true, gift: true, labels: ['1回目', '2回目', '3回目'],
         headline: (c, got) => c.pendingReward ? 'スタンプを受け取ると達成！' : `あと${c.goal - got}回で、次の授業料1回分をお返し！`,
         sub: (c, got) => (c.deadline ? `${dayw(c.deadline)}まで` : '') + (got === 0 ? '　無料体験で1こ目のスタンプが押されました' : ''),
-        after: () => '次は「毎週チャレンジ」。毎週1回の授業が4週つづくと、交換に使えるスタンプ+5' },
+        after: () => '次は「毎週チャレンジ」。毎週1回の授業が4週つづくと、すごろくが5マス進みます' },
       weekly_v1:  { icon: '📅', unit: '週', short: '毎週チャレンジ', labels: ['1週', '2週', '3週', '4週'],
-        headline: (c, got) => c.pendingReward ? 'スタンプを受け取ると達成！' : (got === 0 ? '毎週1回の授業で、4週つづくとスタンプ+5' : `あと${c.goal - got}週つづくとスタンプ+5`),
+        headline: (c, got) => c.pendingReward ? 'スタンプを受け取ると達成！' : (got === 0 ? '毎週1回の授業で、4週つづくとすごろく+5マス' : `あと${c.goal - got}週つづくと、すごろく+5マス`),
+        boardHint: true,
         sub: c => c.restUsed ? 'おやすみ週を使いました。連続はそのままです' : '週は月〜日で数えます。1週だけなら休んでもOK（おやすみ週）' },
       referral:   { icon: '🤝', compact: true },
     };
+    // すごろく：10マスで1エリア。節目（money）は授業料のお返し、それ以外はバッジ。金額は中庭さんと決める（案）
+    const BOARD_PER = 10;
+    const AREAS = [
+      { name: 'はじまりの町', icon: '🏠', bg: '#FFF6E8' }, { name: 'こつこつの森', icon: '🌲', bg: '#EAF6EE' },
+      { name: 'ぐんぐん山', icon: '⛰️', bg: '#EEF1FB' }, { name: 'ひらめきの海', icon: '🌊', bg: '#E6F4F9' }, { name: 'あこがれの星', icon: '🌟', bg: '#F5EEFB' },
+    ];
+    const PRIZES = {
+      2: { icon: '🌱', name: 'はじめの一歩' }, 5: { icon: '🔥', name: 'つづける力' }, 8: { icon: '📚', name: 'こつこつ名人' },
+      10: { icon: '💴', name: '授業料500円お返し（案）', short: '500円お返し', money: true },
+      12: { icon: '🍀', name: '森のよつば' }, 15: { icon: '🦉', name: '森の物知り' }, 18: { icon: '🍄', name: 'ぐんぐんきのこ' },
+      20: { icon: '🎁', name: '授業1回分お返し（案）', short: '1回分お返し', money: true },
+      22: { icon: '🧗', name: 'のぼる人' }, 25: { icon: '🦅', name: '山の鷹' }, 28: { icon: '🏔️', name: '頂上目前' },
+      30: { icon: '💴', name: '授業料500円お返し（案）', short: '500円お返し', money: true },
+      32: { icon: '🐚', name: '海のたから' }, 35: { icon: '🐬', name: 'すいすい' }, 38: { icon: '⚓', name: 'ぶれない心' },
+      40: { icon: '🎁', name: '授業1回分お返し（案）', short: '1回分お返し', money: true },
+      42: { icon: '🌙', name: '夜空の月' }, 45: { icon: '🚀', name: '飛びたつ人' }, 48: { icon: '👑', name: 'もうすぐ伝説' },
+      50: { icon: '🏆', name: 'すごろくマスター＋授業1回分お返し（案）', short: 'マスター', money: true },
+    };
+    const BOARD_MAX = AREAS.length * BOARD_PER;
+    const sqXY = i => { const row = i < 5 ? 0 : 1, col = row ? 9 - i : i; return [10 + 20 * col, row ? 76 : 26]; };   // ヘビ形（1〜5は左→右、6〜10は右→左）
+    const pathD = pts => pts.map((p, k) => { if (!k) return `M${p[0]} ${p[1]}`; const q = pts[k - 1];
+      return q[1] === p[1] ? `L${p[0]} ${p[1]}` : `C${q[0] + 9} ${q[1]} ${p[0] + 9} ${p[1]} ${p[0]} ${p[1]}`; }).join(' ');
+    const weeklyCard = cards => (cards || []).find(c => c.id === 'weekly_v1');
+    const nextPrize = (pos, moneyOnly) => { for (let n = pos + 1; n <= BOARD_MAX; n++) if (PRIZES[n] && (!moneyOnly || PRIZES[n].money)) return n; return null; };
+    // 次にやること（毎週チャレンジ）：あと何週で、何マス目に着くか
+    function nextMove(pos, cards) {
+      const w = weeklyCard(cards); if (!w) return null;
+      const gives = w.givesStamps || 5, land = Math.min(BOARD_MAX, pos + gives);
+      const left = w.pendingReward ? 0 : Math.max(1, w.goal - w.progress);
+      const hits = []; for (let n = pos + 1; n <= land; n++) if (PRIZES[n]) hits.push(n);
+      return { gives, land, left, pending: !!w.pendingReward, hits };
+    }
+    const prizeLabel = n => PRIZES[n].money ? `${PRIZES[n].icon}${PRIZES[n].short}` : `${PRIZES[n].icon}バッジ「${PRIZES[n].name}」`;
+    function boardHint(c) {
+      const pos = (last && last.points) || 0, m = nextMove(pos, (last && last.cards) || []); if (!m) return '';
+      return `達成すると、すごろくが${pos}→${m.land}マス目へ` + (m.hits.length ? `（${m.hits.map(prizeLabel).join('・')}）` : '');
+    }
+    function renderBoard(pts, cards) {
+      const pos = Math.min(pts, BOARD_MAX);
+      const cur = Math.min(AREAS.length - 1, Math.floor(pos / BOARD_PER));
+      const base = cur * BOARD_PER, inArea = pos - base;   // 0＝このエリアのスタート地点
+      const m = nextMove(pos, cards), np = nextPrize(pos), nm = nextPrize(pos, true);
+      // いまここ・次のごほうび・次にやること
+      let todo = '';
+      if (m && m.pending) todo = `▶ 毎週チャレンジのスタンプを受け取ると <b>+${m.gives}マス</b>（${m.land}マス目へ）`;
+      else if (m) todo = `▶ 毎週チャレンジを<b>あと${m.left}週</b>つづけると <b>+${m.gives}マス</b> → ${m.land}マス目` +
+        (m.hits.length ? `。${esc(m.hits.map(prizeLabel).join('・'))} をゲット！` : '');
+      else todo = '▶ チャレンジを達成すると、すごろくが進みます';
+      const prev = nm ? Math.max(0, nm - BOARD_PER) : 0;
+      $('bd-hero').innerHTML = `<div class="where">いまここ</div>
+        <div class="pos">${AREAS[cur].icon} ${esc(AREAS[cur].name)}<small>${pos}マス目</small></div>
+        ${nm ? `<div class="goalbar"><span>${PRIZES[nm].icon}</span><div class="bar"><i style="width:${Math.round(100 * (pos - prev) / (nm - prev))}%"></i></div><span>あと<b>${nm - pos}</b>マス</span></div>
+        <div class="muted">次のお返し：${nm}マス目「${esc(PRIZES[nm].name)}」${np && np !== nm ? `　その手前 ${np}マス目にバッジ ${PRIZES[np].icon}` : ''}</div>` : '<div class="muted">ゴールまでたどり着きました！</div>'}
+        <div class="todo">${todo}</div>`;
+      // エリア：クリア済みは1行、いまのエリアは盤面、次は鍵つき、その先は伏せる
+      const parts = [];
+      for (let a = 0; a < cur; a++) {
+        const got = Object.keys(PRIZES).filter(n => n > a * BOARD_PER && n <= (a + 1) * BOARD_PER).map(n => PRIZES[n].icon).join('');
+        parts.push(`<div class="cleared"><span>${AREAS[a].icon} <b>${esc(AREAS[a].name)}</b>　${got}</span><span class="chip ok">クリア</span></div>`);
+      }
+      const ghost = m ? m.land : 0;
+      const pts10 = [...Array(BOARD_PER).keys()].map(sqXY);
+      const doneTo = Math.max(0, Math.min(BOARD_PER, inArea));
+      let sq = '';
+      for (let i = 0; i < BOARD_PER; i++) {
+        const n = base + i + 1, p = PRIZES[n], [x, y] = sqXY(i), done = n <= pos;
+        const cls = ['sq', p ? (p.money ? 'money' : 'prize') : '', done ? 'done' : '', n === pos ? 'here' : '', n === nm ? 'target' : ''].join(' ');
+        const inner = p ? p.icon : (done ? '✓' : n);
+        const lb = p ? `<span class="lb ${done ? 'got' : ''}">${done ? 'ゲット' : esc(p.short || p.name)}</span>` : '';
+        sq += `<div class="${cls}" style="left:${x}%;top:${y}%">${inner}${lb}</div>`;
+        if (n === pos || (inArea === 0 && i === 0)) sq += `<div class="pin ${p && p.money ? 'money-pin' : ''}" style="left:${x}%;top:${y}%">${inArea === 0 ? 'ここから' : 'いまここ'}</div>`;
+        else if (n === ghost) sq += `<div class="pin ghost ${p && p.money ? 'money-pin' : ''}" style="left:${x}%;top:${y}%">+${m.gives}でここ</div>`;
+      }
+      parts.push(`<div class="area" style="background:${AREAS[cur].bg}"><div class="area-h"><span>${AREAS[cur].icon} ${esc(AREAS[cur].name)}</span><span class="muted">${base + 1}〜${base + BOARD_PER}マス</span></div>
+        <div class="board"><svg viewBox="0 0 100 100" preserveAspectRatio="none">
+          <path d="${pathD(pts10)}" fill="none" stroke="#D9DDE2" stroke-width="3" stroke-dasharray="2 5" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+          ${doneTo > 1 ? `<path d="${pathD(pts10.slice(0, doneTo))}" fill="none" stroke="#E57A00" stroke-width="5" stroke-linecap="round" vector-effect="non-scaling-stroke"/>` : ''}
+        </svg>${sq}</div></div>`);
+      if (cur + 1 < AREAS.length) {
+        const nx = AREAS[cur + 1];
+        parts.push(`<div class="lockarea"><div class="t">🔒 ${nx.icon} ${esc(nx.name)}</div>
+          <div class="dots">${[...Array(BOARD_PER).keys()].map(i => `<i class="${i === BOARD_PER - 1 ? 'big' : ''}">？</i>`).join('')}</div>
+          <div style="font-size:12px">あと <b>${base + BOARD_PER - pos}マス</b> で地図が開きます。どんなバッジがあるかはお楽しみ</div></div>`);
+        const rest = AREAS.length - cur - 2;
+        if (rest > 0) parts.push(`<div class="muted" style="text-align:center">その先に、まだ見ぬエリアが ${rest} つ…</div>`);
+      }
+      $('bd-areas').innerHTML = parts.join('');
+      // バッジ棚：開いたエリアのバッジは名前まで、先のエリアは「？」
+      const open = (cur + 1) * BOARD_PER, all = Object.keys(PRIZES).map(Number).filter(n => !PRIZES[n].money);
+      $('bd-count').textContent = `${all.filter(n => n <= pos).length} / ${all.length}`;
+      $('bd-shelf').innerHTML = all.map(n => n <= pos ? `<div class="bd"><div class="ic">${PRIZES[n].icon}</div>${esc(PRIZES[n].name)}</div>`
+        : `<div class="bd lock ${n <= open ? 'seen' : ''}"><div class="ic">${n <= open ? PRIZES[n].icon : '？'}</div>${n <= open ? `${n}マス目` : '？？？'}</div>`).join('');
+    }
+
     // 返金の説明（返金担当のやり方に合わせて直す：返金先と日数）
     const REFUND_HOW = 'お支払いのカードへ・数日〜1週間ほど';
     const NO_ACTION = '何もしなくて大丈夫です';
@@ -286,21 +423,14 @@
       $('rewards').innerHTML = items.length ? items.join('<div style="height:12px"></div>')
         : '<div class="card empty">まだ特典はありません。<br>カードを達成すると、ここにチケットが届きます。</div>';
 
-      // ポイントタブ
+      // すごろくタブ（スタンプ1個＝1マス。スタンプは減らない）
       const pts = data.points || 0;
-      $('pt-num').textContent = pts.toLocaleString('ja-JP'); $('pt-pill').textContent = pts.toLocaleString('ja-JP');
-      const menu = (data.menu || []).slice().sort((a, b) => a['必要pt'] - b['必要pt']);
-      const next = menu.find(m => m['必要pt'] > pts);
-      const first = menu[0];
-      $('pt-next').innerHTML = next ? `<div class="meter"><i style="width:${Math.min(100, Math.round(100 * pts / next['必要pt']))}%"></i></div>
-        <div style="font-size:12px">あと <b>${next['必要pt'] - pts}個</b> で「${esc(next['名前'])}」</div>` : (menu.length ? '<div style="font-size:12px;margin-top:6px">交換できるものがあります</div>' : '');
-      $('pt-menu').innerHTML = menu.length ? menu.map(m => `<div class="menu-li"><div><div style="font-size:14px;font-weight:700">${esc(m['名前'])}</div><div class="muted">${esc(m['中身'] || '')}</div></div>
-          <div style="text-align:right"><div class="pt">🎫×${m['必要pt']}</div><button type="button" disabled>${m['必要pt'] <= pts ? '交換（準備中）' : `あと${m['必要pt'] - pts}個`}</button></div></div>`).join('')
-        : '<div class="empty">交換できるものは準備中です</div>';
+      $('pt-pill').textContent = pts;
+      renderBoard(pts, cards);
       const names = Object.fromEntries(cards.map(c => [c.id, c.name]));
       const hist = data.history || [];
       $('hist').innerHTML = hist.length ? hist.map(h => {
-        const right = h.unit === 'pt' ? `ためたスタンプ +${h.amount}` : (h.campaign === 'referral' ? '特典' : `${(CAMPAIGN_VIEW[h.campaign] || {}).short || 'カード'}に+${h.amount}`);
+        const right = h.unit === 'pt' ? `すごろく +${h.amount}マス` : (h.campaign === 'referral' ? '特典' : `${(CAMPAIGN_VIEW[h.campaign] || {}).short || 'カード'}に+${h.amount}`);
         const label = (names[h.campaign] || h.campaign) + (h.memo ? `：${h.memo}` : '');
         return `<div class="li"><div>${esc(label)}<div class="d">${md(h.at)}</div></div><div class="v">${esc(right)}</div></div>`;
       }).join('') : '<div class="empty">まだ履歴はありません</div>';
@@ -364,6 +494,7 @@
       const r = (c.rewards || []).slice(-1)[0];
       if (r && (c.finished || ['予定', 'リクエスト中', '返金待ち'].includes(r.status))) body += rewardHtml(r, false);
       if (c.finished && v.after) body += `<div class="next">▶ ${esc(v.after())}</div>`;
+      if (v.boardHint && !c.finished && last) body += `<div class="next" style="cursor:pointer" onclick="setTab('points')">🎲 ${esc(boardHint(c))}</div>`;
       return `<div class="card"><div class="row"><span class="title">${v.icon} ${esc(c.name)}</span>${chip}</div>${body}</div>`;
     }
 
@@ -385,7 +516,7 @@
           return `<div class="ticket ok"><div class="lab">✅ 特典を使いました</div><div class="when">${md(r.lessonStart)} の授業料</div>
             <div class="sub">${r.yen ? `${yen(r.yen)}を` : ''}お返ししました</div></div>`;
         case '付与済み':
-          return `<div class="ticket ok"><div class="lab">✅ ${md(r.reachedAt)} 達成</div><div class="when">スタンプ +${r.yen}個</div><div class="sub">スタンプ帳にためました（交換に使えます）</div></div>`;
+          return `<div class="ticket ok"><div class="lab">✅ ${md(r.reachedAt)} 達成</div><div class="when">すごろく +${r.yen}マス</div><div class="sub">スタンプ${r.yen}個ぶん、すごろくが進みました</div></div>`;
         case '期限切れ':
           return `<div class="ticket gray"><div class="lab">期限切れ</div><div class="sub">特典の期限（${md(r.expire)}）が過ぎました</div></div>`;
         default: return '';
@@ -419,9 +550,9 @@
       celebrated[card.id] = true;
       $('cel-title').textContent = `${card.name} 達成！`;
       const isPt = r.status === '付与済み';
-      $('cel-body').innerHTML = isPt ? `交換に使えるスタンプ <b>+${r.yen}個</b> をスタンプ帳にためました。`
+      $('cel-body').innerHTML = isPt ? `スタンプ <b>+${r.yen}個</b>！ すごろくが<b>${r.yen}マス</b>進みました。`
         : `<b>特典ゲット！</b><br>次に受ける授業1回分の<b>授業料をお返し</b>します。<br>予約もお支払いもいつも通りでOK。返金はTeachが自動で行うので、<b>何もしなくて大丈夫です</b>${md(r.expire) ? `<br>（${md(r.expire)}までに受ける授業が対象）` : ''}`;
-      $('cel-book').hidden = isPt;
+      $('cel-book').hidden = isPt; $('cel-board').hidden = !isPt;
       setTimeout(() => { $('celebrate').hidden = false; }, 600);
     }
 
@@ -530,6 +661,7 @@
         demoMode = true;
         const i = Math.min(5, Math.max(0, Number(q.get('demo')) || 0));
         last = q.get('demo') === 'unlinked' ? { linked: false } : demoData(i);
+        if (q.get('pts') && last.linked) last.points = Number(q.get('pts')) || 0;   // すごろくの位置を試す（例 &pts=23）
         render(last);
         return;
       }
@@ -553,6 +685,7 @@
     document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => setTab(b.getAttribute('data-go'))));
     $('claim-btn').addEventListener('click', claim);
     $('cel-close').addEventListener('click', () => { $('celebrate').hidden = true; });
+    $('cel-board').addEventListener('click', () => { $('celebrate').hidden = true; setTab('points'); });
     main();
   </script>
 </body>
