@@ -170,7 +170,7 @@
           <div class="q">スタンプはいつ届く？</div>
           <div class="a">授業を受けた翌朝に届きます。予約しただけでは届きません。受け取らなくても、特典の対象からは外れません。</div>
           <div class="q">「授業料をお返し」はどういうこと？</div>
-          <div class="a">予約もお支払いもいつも通りです。特典を使う授業が終わったあと、その授業料を全額お返しします（60分を超える授業は60分ぶん）。お支払いに使ったカードに返金します（数日〜1週間ほど）。お手続きは不要です。</div>
+          <div class="a">予約もお支払いもいつも通りです。特典を使う授業が終わったら、その授業料をTeachが自動で返金します（60分を超える授業は60分ぶん。お支払いのカードへ・数日〜1週間ほど）。何もしなくて大丈夫です。</div>
           <div class="q">毎週チャレンジの「週」は？</div>
           <div class="a">月曜〜日曜で数えます。1週だけ休んでも続いたことになります（おやすみ週・4週に1回）。2週休むと1週目からやり直しです。</div>
           <div class="q">「ためたスタンプ」は何に使える？</div>
@@ -228,7 +228,8 @@
       referral:   { icon: '🤝', compact: true },
     };
     // 返金の説明（返金担当のやり方に合わせて直す：返金先と日数）
-    const REFUND_HOW = 'お支払いに使ったカードに返金します（数日〜1週間ほど）';
+    const REFUND_HOW = 'お支払いのカードへ・数日〜1週間ほど';
+    const NO_ACTION = '何もしなくて大丈夫です';
     // 「11/18（火）」の形
     const dayw = s => { const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/); if (!m) return '';
       return `${+m[2]}/${+m[3]}（${'日月火水木金土'[new Date(+m[1], +m[2] - 1, +m[3]).getDay()]}）`; };
@@ -373,13 +374,13 @@
         case '予定':
           return `<div class="ticket"><div class="lab">🎁 特典ゲット！ あとは予約するだけ</div>
             <div class="when" style="font-size:17px">次の授業料を1回分お返し</div>
-            <div class="sub">予約もお支払いもいつも通りでOK。授業が終わったあと、授業料を全額お返しします（60分を超える授業は60分ぶん）${md(r.expire) ? `。<b>${md(r.expire)}まで</b>の予約が対象` : ''}</div></div>${book}`;
+            <div class="sub">予約もお支払いもいつも通りでOK。授業が終わったら、Teachが授業料を自動で返金します（60分を超える授業は60分ぶん）。<b>${NO_ACTION}</b>${md(r.expire) ? `<br>${md(r.expire)}までの予約が対象です` : ''}</div></div>${book}`;
         case 'リクエスト中':
           return `<div class="ticket"><div class="lab">⏳ 先生の承認待ち</div><div class="when">${when(r.lessonStart)}</div>
-            <div class="sub">先生が承認すると、この授業の授業料をあとでお返しします</div></div>`;
+            <div class="sub">先生が承認すると、この授業の授業料を授業のあとに自動で返金します。${NO_ACTION}</div></div>`;
         case '返金待ち':
           return `<div class="ticket"><div class="lab">🎫 この授業の授業料をお返しします</div><div class="when">${when(r.lessonStart)}</div>
-            <div class="sub">お支払いはいつも通り。授業が終わったあと、${r.yen ? `<b>${yen(r.yen)}</b>を` : ''}${REFUND_HOW}</div></div>`;
+            <div class="sub">授業が終わったら、Teachが${r.yen ? `<b>${yen(r.yen)}</b>を` : ''}自動で返金します（${REFUND_HOW}）。<b>${NO_ACTION}</b></div></div>`;
         case '返金済み':
           return `<div class="ticket ok"><div class="lab">✅ 特典を使いました</div><div class="when">${md(r.lessonStart)} の授業料</div>
             <div class="sub">${r.yen ? `${yen(r.yen)}を` : ''}お返ししました</div></div>`;
@@ -419,7 +420,7 @@
       $('cel-title').textContent = `${card.name} 達成！`;
       const isPt = r.status === '付与済み';
       $('cel-body').innerHTML = isPt ? `交換に使えるスタンプ <b>+${r.yen}個</b> をスタンプ帳にためました。`
-        : `<b>特典ゲット！</b><br>次の授業1回分の<b>授業料をお返し</b>します。<br>予約もお支払いもいつも通りでOK。授業が終わったあとに返金します${md(r.expire) ? `（${md(r.expire)}までの予約が対象）` : ''}`;
+        : `<b>特典ゲット！</b><br>次の授業1回分の<b>授業料をお返し</b>します。<br>予約もお支払いもいつも通りでOK。返金はTeachが自動で行うので、<b>何もしなくて大丈夫です</b>${md(r.expire) ? `<br>（${md(r.expire)}までの予約が対象）` : ''}`;
       $('cel-book').hidden = isPt;
       setTimeout(() => { $('celebrate').hidden = false; }, 600);
     }
