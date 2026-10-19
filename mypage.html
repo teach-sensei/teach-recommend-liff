@@ -396,7 +396,7 @@
     //   光っているスタンプを1個ずつタップ → ハンコの演出。1個目のタップで裏で受け取りを記録し、全部押し終わったら描き直す
     let justClaimed = {}, gotSummary = '';
     let last = null, idTokenCache = null, demoMode = false;
-    let claimPromise = null, before = null, celebrated = {};
+    let claimPromise = null, before = null, celebrated = {}, tappedCount = {};
     const NAMES = () => Object.fromEntries((last.cards || []).map(c => [c.id, c.name]));
 
     function requestClaim() {
@@ -432,7 +432,15 @@
       if (left > 0) return;
       const data = await requestClaim();
       const card = (data.cards || []).find(c => c.id === cid);
-      if (card) celebrate(card);
+      if (!card) return;
+      celebrate(card);
+      const merged = JSON.parse(JSON.stringify(last));
+      merged.cards = merged.cards.map(c => {
+        if (c.id === cid) return card;
+        const t = tappedCount[c.id] || 0;
+        return t ? Object.assign(c, { claimed: (c.claimed || 0) + t, claimable: Math.max(0, (c.claimable || 0) - t) }) : c;
+      });
+      setTimeout(() => render(merged), 600);
     }
 
     function hanko(sub) {
@@ -447,6 +455,7 @@
       const cid = el.getAttribute('data-c');
       requestClaim();
       el.classList.remove('wait'); el.classList.add('on', 'pop'); el.textContent = '✓'; el.onclick = null;
+      tappedCount[cid] = (tappedCount[cid] || 0) + 1;
       hanko(NAMES()[cid] || '');
       const left = Math.max(0, Number($('claim-num').textContent) - 1);
       $('claim-num').textContent = left; $('badge-cards').textContent = left;
@@ -469,7 +478,7 @@
       gotSummary = Object.keys(claimed).length
         ? '✅ 今日受け取ったスタンプ：' + Object.entries(claimed).map(([k, n]) => `${names[k] || k} ${n}${(CAMPAIGN_VIEW[k] || {}).unit || '個'}`).join('・') : '';
       justClaimed = {};
-      last = data; claimPromise = null;
+      last = data; claimPromise = null; tappedCount = {};
       setTimeout(() => {
         render(data);
         const reached = (data.cards || []).find(c => !celebrated[c.id] && (before[c.id] || {}).pendingReward && (c.rewards || []).length > ((before[c.id] || {}).rewards || []).length);
