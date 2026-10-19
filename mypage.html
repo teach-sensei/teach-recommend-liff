@@ -48,6 +48,21 @@
     .msg { text-align: center; padding: 40px 16px; color: var(--sub); font-size: 14px; }
     .msg.error { color: var(--error); }
     .demo { font-size: 11px; background: #FFFBE6; border: 1px solid #F5DC8A; border-radius: 8px; padding: 6px 10px; }
+    .st.wait { border: 2px solid var(--accent); color: var(--accent); background: #FFF; animation: glow 1.4s ease-in-out infinite; font-size: 11px; font-weight: 700; }
+    .st.pop { animation: pop .6s ease-out; }
+    @keyframes glow { 0%,100% { box-shadow: 0 0 0 0 rgba(224,123,0,.45); } 50% { box-shadow: 0 0 0 8px rgba(224,123,0,0); } }
+    @keyframes pop { 0% { transform: scale(.3) rotate(-25deg); opacity: .2; } 60% { transform: scale(1.25) rotate(8deg); opacity: 1; } 100% { transform: scale(1) rotate(0); } }
+    .bar i.wait { background: repeating-linear-gradient(45deg, #F2C38A, #F2C38A 6px, #FBE3C4 6px, #FBE3C4 12px); }
+    .bar { display: flex; }
+    .claim { background: linear-gradient(135deg, #E07B00, #F2A33A); color: #fff; border-radius: 14px; padding: 14px; display: grid; gap: 8px; text-align: center; }
+    .claim b { font-size: 16px; }
+    .claim button { border: 0; border-radius: 10px; padding: 12px; font-size: 15px; font-weight: 700; background: #fff; color: var(--accent); }
+    .claim button:disabled { opacity: .6; }
+    .hint { font-size: 12px; color: var(--accent); font-weight: 700; }
+    .celebrate { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: grid; place-items: center; z-index: 10; padding: 24px; }
+    .celebrate .in { background: #fff; border-radius: 16px; padding: 22px 18px; max-width: 360px; text-align: center; display: grid; gap: 10px; animation: pop .5s ease-out; }
+    .celebrate .big { font-size: 40px; }
+    .celebrate button { border: 0; border-radius: 10px; padding: 11px; background: var(--accent); color: #fff; font-weight: 700; font-size: 14px; }
     [hidden] { display: none !important; }
   </style>
 </head>
@@ -68,6 +83,10 @@
     <!-- マイページ本体 -->
     <div id="main" hidden>
       <div class="page" style="padding:0">
+        <div class="claim" id="claim-box" hidden>
+          <div>🎁 スタンプが <b id="claim-num">0</b> 個 届いています</div>
+          <button id="claim-btn" type="button">スタンプを受け取る</button>
+        </div>
         <div class="box points" id="points-box" hidden>
           <small>Teachポイント</small>
           <div class="num"><span id="pt-num">0</span><span> pt</span></div>
@@ -83,6 +102,15 @@
         <a id="book-btn" class="cta" href="#">次の授業を予約する</a>
         <div class="foot">数は毎朝更新されます／ご不明点はトークでお気軽にご相談ください</div>
       </div>
+    </div>
+  </div>
+
+  <div class="celebrate" id="celebrate" hidden>
+    <div class="in">
+      <div class="big">🎉</div>
+      <div style="font-weight:700;font-size:17px" id="cel-title"></div>
+      <div class="desc" id="cel-body" style="font-size:13px"></div>
+      <button type="button" id="cel-close">閉じる</button>
     </div>
   </div>
 
@@ -125,6 +153,12 @@
         else if (next) { $('pt-ex').hidden = false; $('pt-ex').innerHTML = `あと <b>${next['必要pt'] - data.points}pt</b> で「${esc(next['名前'])}」と交換できます`; }
       }
 
+      // 受け取り待ち
+      const waiting = (data.cards || []).reduce((n, c) => n + (c.claimable || 0), 0);
+      $('claim-box').hidden = waiting === 0;
+      $('claim-num').textContent = waiting;
+      $('claim-btn').disabled = false;
+
       // カード
       const cards = data.cards || [];
       $('cards').innerHTML = cards.length ? cards.map(cardHtml).join('')
@@ -151,14 +185,20 @@
       } else if (c.finished) {
         tag = '<span class="tag ok">達成</span>';
       } else if (c.goal) {
-        tag = `<span class="tag">あと${c.goal - c.progress}${v.unitLabel || '回'}</span>`;
+        tag = `<span class="tag">あと${c.goal - (c.claimed == null ? c.progress : c.claimed)}${v.unitLabel || '回'}</span>`;
       }
+      const got = c.claimed == null ? c.progress : c.claimed;            // 受け取り済み
+      const fresh = (justClaimed[c.id] || 0);                             // いま受け取った数（アニメーション用）
       if (v.style === 'stamps' && c.goal) {
-        body += '<div class="stamps">' + Array.from({ length: c.goal }, (_, k) =>
-          `<div class="st ${k < c.progress ? 'on' : ''}">${k < c.progress ? '✓' : k + 1}</div>`).join('') + '</div>';
+        body += '<div class="stamps">' + Array.from({ length: c.goal }, (_, k) => {
+          if (k < got) return `<div class="st on ${k >= got - fresh ? 'pop' : ''}">✓</div>`;
+          if (k < c.progress) return '<div class="st wait">受取</div>';
+          return `<div class="st">${k + 1}</div>`;
+        }).join('') + '</div>';
       } else if (v.style === 'bar' && c.goal) {
-        body += `<div class="bar"><i style="width:${Math.round(100 * c.progress / c.goal)}%"></i></div>`;
+        body += `<div class="bar"><i style="width:${Math.round(100 * got / c.goal)}%"></i><i class="wait" style="width:${Math.round(100 * (c.progress - got) / c.goal)}%"></i></div>`;
       }
+      if (c.pendingReward) body += '<div class="hint">🎁 スタンプを受け取ると特典が出ます！</div>';
       body += `<div class="desc">${esc(c.description)}</div>`;
       body += rewards.slice(-2).map(rewardHtml).join('');   // くり返す施策は直近2回だけ出す
       return `<div class="box camp"><div class="top"><span class="name">${v.icon} ${esc(c.name)}</span>${tag}</div>${body}</div>`;
@@ -175,6 +215,38 @@
       }
     }
 
+    // ---------- 受け取り ----------
+    let justClaimed = {};
+    let last = null, idTokenCache = null, demoMode = false;
+    async function claim() {
+      $('claim-btn').disabled = true;
+      const before = Object.fromEntries((last.cards || []).map(c => [c.id, c]));
+      let data;
+      if (demoMode) {   // デモ：手元で受け取ったことにする
+        data = JSON.parse(JSON.stringify(last));
+        data.claimed = {};
+        data.cards.forEach(c => { if (c.claimable) { data.claimed[c.id] = c.claimable; c.claimed = c.progress; c.claimable = 0;
+          if (c.pendingReward) { c.pendingReward = false; c.finished = true; c.rewards = c._rewardsAfter || []; } } });
+      } else {
+        const res = await fetch(GAS_ENDPOINT, { method: 'POST', body: new URLSearchParams({ type: 'claim', idToken: idTokenCache }) });
+        data = await res.json();
+        if (!data.ok) { fail('受け取りに失敗しました。時間をおいて、もう一度開いてください。'); return; }
+      }
+      justClaimed = data.claimed || {};
+      last = data;
+      render(data);
+      // 達成の演出：受け取ったことで特典が見えるようになったカード
+      const reached = (data.cards || []).find(c => (before[c.id] || {}).pendingReward && (c.rewards || []).length > ((before[c.id] || {}).rewards || []).length);
+      if (reached) {
+        const r = reached.rewards[reached.rewards.length - 1];
+        $('cel-title').textContent = `${reached.name} 達成！`;
+        $('cel-body').innerHTML = r.status === '付与済み' ? `Teachポイント <b>+${r.yen}pt</b> をお送りしました。`
+          : `特典：${md(r.expire) ? md(r.expire) + 'までに' : ''}アプリで予約した授業1回分の授業料をお返しします（60分を超える授業は60分ぶん）。お手続きは不要です。`;
+        setTimeout(() => { $('celebrate').hidden = false; }, 700);
+      }
+      setTimeout(() => { justClaimed = {}; }, 800);
+    }
+
     // ---------- デモ（?demo=0〜3。LINE・GASにはつながない） ----------
     function demoData(i) {
       const starter = [
@@ -183,13 +255,16 @@
         { progress: 2, finished: true, rewards: [{ status: '予定', reachedAt: '2026-11-16', expire: '2026-12-16' }] },
         { progress: 2, finished: true, rewards: [{ status: '返金済み', reachedAt: '2026-11-16', lessonStart: '2026-11-20 17:00:00', yen: 2640 }] },
       ][i];
+      // デモでも受け取りを体験できるように、最後の1個を受け取り待ちにする
+      if (starter.progress > 0 && i < 3) { starter.claimed = starter.progress - 1; starter.claimable = 1;
+        if (starter.finished) { starter._rewardsAfter = starter.rewards; starter.rewards = []; starter.finished = false; starter.pendingReward = true; } }
       return {
         linked: true, points: 120,
         menu: [{ '名前': '授業料500円お返し', '必要pt': 300, '中身': '' }],
         cards: [
           Object.assign({ id: 'starter_v1', name: 'スタートカード', goal: 2,
             description: '初回（無料）のあと30日以内に有料授業2回で、次の授業1回分の授業料をお返し（60分ぶんまで）' }, starter),
-          { id: 'weekly_v1', name: '毎週チャレンジ', goal: 4, progress: 2, finished: false,
+          { id: 'weekly_v1', name: '毎週チャレンジ', goal: 4, progress: 2, claimed: 1, claimable: 1, finished: false,
             description: '4週つづけて授業を受けると Teachポイント 100pt。週が空いたらやり直し', rewards: [] },
           { id: 'referral', name: '友達紹介', goal: null, progress: 1, finished: false,
             description: '紹介したお友だちが初回の授業を受けると、次の授業1回分が無料', rewards: [] },
@@ -209,24 +284,30 @@
       if (q.has('demo') || LIFF_ID.indexOf('REPLACE') === 0) {   // 設定が未入力のうちはデモ表示
         $('demo-note').hidden = false;
         const i = Math.min(3, Math.max(0, Number(q.get('demo')) || 0));
-        render(q.get('demo') === 'unlinked' ? { linked: false } : demoData(i));
+        demoMode = true;
+        last = q.get('demo') === 'unlinked' ? { linked: false } : demoData(i);
+        render(last);
         return;
       }
       try {
         await liff.init({ liffId: LIFF_ID });
         if (!liff.isLoggedIn()) { liff.login(); return; }
         const idToken = liff.getIDToken();
+        idTokenCache = idToken;
         if (!idToken) { fail('LINEの情報を読み込めませんでした。一度閉じて、もう一度開いてください。'); return; }
         const params = new URLSearchParams({ type: 'mypage', idToken: idToken });
         const res = await fetch(GAS_ENDPOINT, { method: 'POST', body: params });   // URLSearchParams＝プリフライトなし
         const data = await res.json();
         if (!data.ok) { fail('マイページを読み込めませんでした。時間をおいて、もう一度開いてください。'); return; }
+        last = data;
         render(data);
       } catch (e) {
         console.error(e);
         fail('マイページを読み込めませんでした。一度LINEを閉じてから、もう一度開いてください。');
       }
     }
+    $('claim-btn').addEventListener('click', claim);
+    $('cel-close').addEventListener('click', () => { $('celebrate').hidden = true; });
     main();
   </script>
 </body>
